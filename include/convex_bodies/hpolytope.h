@@ -110,29 +110,28 @@ public:
     std::pair<Point, NT> ComputeInnerBall()
     {
         normalize();
-        #ifndef DISABLE_LPSOLVE
-            _inner_ball = ComputeChebychevBall<NT, Point>(A, b); // use lpsolve library
-        #else
+        if (_inner_ball.second <= NT(0)) {
 
-            if (_inner_ball.second <= NT(0)) {
+            NT const tol = 1e-08;
+            std::tuple<VT, NT, bool> inner_ball = max_inscribed_ball(A, b, 5000, tol);
 
-                NT const tol = 1e-08;
-                std::tuple<VT, NT, bool> inner_ball = max_inscribed_ball(A, b, 5000, tol);
-
-                // check if the solution is feasible
-                if (is_in(Point(std::get<0>(inner_ball))) == 0 || std::get<1>(inner_ball) < tol/2.0 ||
-                    std::isnan(std::get<1>(inner_ball)) || std::isinf(std::get<1>(inner_ball)) ||
-                    is_inner_point_nan_inf(std::get<0>(inner_ball)))
-                {
+            // check if the solution is feasible
+            if (is_in(Point(std::get<0>(inner_ball))) == 0 || std::get<1>(inner_ball) < tol/2.0 ||
+                std::isnan(std::get<1>(inner_ball)) || std::isinf(std::get<1>(inner_ball)) ||
+                is_inner_point_nan_inf(std::get<0>(inner_ball))) {
+                
+                std::cout << "Failed to compute max inscribed ball, trying to use lpsolve" << std::endl;
+                #ifndef DISABLE_LPSOLVE
+                    _inner_ball = ComputeChebychevBall<NT, Point>(A, b); // use lpsolve library
+                #else
+                    std::cout << "lpsolve is disabled, unable to compute inner ball";
                     _inner_ball.second = -1.0;
-                } else
-                {
-                    _inner_ball.first = Point(std::get<0>(inner_ball));
-                    _inner_ball.second = std::get<1>(inner_ball);
-                }
+                #endif
+            } else {
+                _inner_ball.first = Point(std::get<0>(inner_ball));
+                _inner_ball.second = std::get<1>(inner_ball);
             }
-        #endif
-
+        }
         return _inner_ball;
     }
 

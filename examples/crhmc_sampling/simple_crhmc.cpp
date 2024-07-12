@@ -14,6 +14,7 @@
 // Riemannian Hamiltonian
 // Monte Carlo in a Constrained Space"
 
+
 #include "Eigen/Eigen"
 #include "cartesian_geom/cartesian_kernel.h"
 #include "generators/order_polytope_generator.h"
@@ -65,8 +66,10 @@ typename Point,
 typename RandomNumberGenerator
 >
 void sample_aBW (Polytope &P, RandomNumberGenerator &rng, std::list<Point> &randPoints, unsigned int const&N) {
-
+        
+        std::cout << "finding the inner ball" << std::endl;
         Point p = P.ComputeInnerBall().first;
+        std::cout << "finished finding the inner ball" << std::endl;
         typedef typename AcceleratedBilliardWalk::template Walk
                 <
                         Polytope,
@@ -93,6 +96,9 @@ void sample_gaBW (Polytope &P, RandomNumberGenerator &rng, std::list<Point> &ran
         std::chrono::time_point<std::chrono::high_resolution_clock> start, stop;
         start = std::chrono::high_resolution_clock::now();
 
+
+        std::cout << "trying to compute the inner ball" << std::endl;
+
         Point p = P.ComputeInnerBall().first;
         typedef typename GABW::template Walk
                 <
@@ -102,7 +108,7 @@ void sample_gaBW (Polytope &P, RandomNumberGenerator &rng, std::list<Point> &ran
         typedef MultivariateGaussianRandomPointGenerator <walk> RandomPointGenerator;
         PushBackWalkPolicy push_back_policy;
 
-        
+        std::cout << "trying to compute the ellipsoid" << std::endl;
 
         std::tuple<MT, VT, NT> ellipsoid = compute_inscribed_ellipsoid<MT, EllipsoidType::MAX_ELLIPSOID>
         (P.get_mat(), P.get_vec(), p.getCoefficients(), 500, std::pow(10, -6.0), std::pow(10, -4.0));
@@ -224,9 +230,13 @@ void sample_hpoly(int n_samples = 80000,
     } else if(crhmc_walk == 0) {
         std::cout << "Using aBW walk" << std::endl;
         sample_aBW(HP, rng, PointList, n_samples);
-    } else {
+    } else if(crhmc_walk == 2) {
         std::cout << "Using GaBW walk" << std::endl;
         sample_gaBW<MT, VT, NT>(HP, rng, PointList, n_samples);
+    } else if(crhmc_walk == 4) {
+        std::pair<Point, NT> InnerBall = HP.ComputeInnerBall();
+        std::tuple<MT, VT, NT> res = inscribed_ellipsoid_rounding<MT, VT, NT>(HP, InnerBall.first);
+        sample_aBW(HP, rng, PointList, n_samples);
     }
 
     stop = std::chrono::high_resolution_clock::now();
@@ -289,16 +299,16 @@ int main(int argc, char *argv[]) {
             std::ofstream samples_stream;
             samples_stream.open("output" + std::to_string(atoi(argv[1])) + ".txt");
             
-            for(int n = 200; n <= 200; n += 50)
+            for(int n = 50; n <= 200; n += 50)
             {
                 std::cout << "\n\n" << n << '\n';
                 int m = n * 10;
-                double dur[5][3];
-                double psrf[5][3];
-                double ess[5][3];
-                double nr_s[5][3];
+                double dur[5][5];
+                double psrf[5][5];
+                double ess[5][5];
+                double nr_s[5][5];
                 for(int a = 0; a <= 4; ++a)
-                    for(int b = 1; b <= 1; ++b) {
+                    for(int b = 0; b <= 4; b+=2) {
                         if(atoi(argv[1]) == 1)
                             run_main<1>(60 * n, 10, n, m, a, b);
                         else if(atoi(argv[1]) == 4)
@@ -320,7 +330,7 @@ int main(int argc, char *argv[]) {
                     system(command.c_str());
                     std::ifstream mat_res;
                     mat_res.open("matlab_results.txt");
-                    mat_res >> dur[a][2] >> ess[a][2] >> nr_s[a][2] >> psrf[a][2];
+                    mat_res >> dur[a][3] >> ess[a][3] >> nr_s[a][3] >> psrf[a][3];
                     mat_res.close();
                 }*/
                 int x;
@@ -346,12 +356,33 @@ int main(int argc, char *argv[]) {
                 samples_stream << "\"\"\n";
 
                 x = 2;
+                samples_stream << "Volesti GaBW,runtime," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
+                samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
+                samples_stream << "\"\",psrf," << psrf[0][x] << ',' << psrf[1][x] << ',' << psrf[2][x] << ',' << psrf[3][x] << ',' << psrf[4][x] << '\n';
+                samples_stream << "\"\",ess," << ess[0][x] << ',' << ess[1][x] << ',' << ess[2][x] << ',' << ess[3][x] << ',' << ess[4][x] << '\n';
+                samples_stream << "\"\",ess / runtime," << ess[0][x] / dur[0][x] << ',' << ess[1][x] / dur[1][x] << ',' << ess[2][x] / dur[2][x] << ',' << ess[3][x] / dur[3][x] << ',' << ess[4][x] / dur[4][x] << '\n';
+                samples_stream << "\"\",ess / samples," << ess[0][x] / nr_s[0][x] << ',' << ess[1][x] / nr_s[1][x] << ',' << ess[2][x] / nr_s[2][x] << ',' << ess[3][x] / nr_s[3][x] << ',' << ess[4][x] / nr_s[4][x] << '\n';
+                
+                samples_stream << "\"\"\n";
+                
+
+                x = 3;
                 samples_stream << "Matlab CRHMC,runtime," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
                 samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
                 samples_stream << "\"\",psrf," << psrf[0][x] << ',' << psrf[1][x] << ',' << psrf[2][x] << ',' << psrf[3][x] << ',' << psrf[4][x] << '\n';
                 samples_stream << "\"\",ess," << ess[0][x] << ',' << ess[1][x] << ',' << ess[2][x] << ',' << ess[3][x] << ',' << ess[4][x] << '\n';
                 samples_stream << "\"\",ess / runtime," << ess[0][x] / dur[0][x] << ',' << ess[1][x] / dur[1][x] << ',' << ess[2][x] / dur[2][x] << ',' << ess[3][x] / dur[3][x] << ',' << ess[4][x] / dur[4][x] << '\n';
                 samples_stream << "\"\",ess / samples," << ess[0][x] / nr_s[0][x] << ',' << ess[1][x] / nr_s[1][x] << ',' << ess[2][x] / nr_s[2][x] << ',' << ess[3][x] / nr_s[3][x] << ',' << ess[4][x] / nr_s[4][x] << '\n';
+            
+                samples_stream << "\"\"\n";
+                
+
+                x = 4;
+                samples_stream << "Volesti GaBW w rounding," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
+                samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
+                samples_stream << "\"\",psrf," << psrf[0][x] << ',' << psrf[1][x] << ',' << psrf[2][x] << ',' << psrf[3][x] << ',' << psrf[4][x] << '\n';
+                samples_stream << "\"\",ess," << ess[0][x] << ',' << ess[1][x] << ',' << ess[2][x] << ',' << ess[3][x] << ',' << ess[4][x] << '\n';
+                samples_stream << "\"\",ess / runtime," << ess[0][x] / dur[0][x] << ',' << ess[1][x] / dur[1][x] << ',' << ess[2][x] / dur[2][x] << ',' << ess[3][x] / dur[3][x] << ',' << ess[4][x] / dur[4][x] << '\n';
                 
                 samples_stream << "\"\"" << std::endl;
 
