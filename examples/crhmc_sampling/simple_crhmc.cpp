@@ -345,7 +345,7 @@ int main(int argc, char *argv[]) {
                 
                 samples_stream << "\"\"\n";
 
-                x = 1;
+                /*x = 1;
                 samples_stream << "Volesti CRHMC,runtime," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
                 samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
                 samples_stream << "\"\",psrf," << psrf[0][x] << ',' << psrf[1][x] << ',' << psrf[2][x] << ',' << psrf[3][x] << ',' << psrf[4][x] << '\n';
@@ -353,7 +353,7 @@ int main(int argc, char *argv[]) {
                 samples_stream << "\"\",ess / runtime," << ess[0][x] / dur[0][x] << ',' << ess[1][x] / dur[1][x] << ',' << ess[2][x] / dur[2][x] << ',' << ess[3][x] / dur[3][x] << ',' << ess[4][x] / dur[4][x] << '\n';
                 samples_stream << "\"\",ess / samples," << ess[0][x] / nr_s[0][x] << ',' << ess[1][x] / nr_s[1][x] << ',' << ess[2][x] / nr_s[2][x] << ',' << ess[3][x] / nr_s[3][x] << ',' << ess[4][x] / nr_s[4][x] << '\n';
                 
-                samples_stream << "\"\"\n";
+                samples_stream << "\"\"\n";*/
 
                 x = 2;
                 samples_stream << "Volesti GaBW,runtime," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
@@ -366,7 +366,7 @@ int main(int argc, char *argv[]) {
                 samples_stream << "\"\"\n";
                 
 
-                x = 3;
+                /*x = 3;
                 samples_stream << "Matlab CRHMC,runtime," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
                 samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
                 samples_stream << "\"\",psrf," << psrf[0][x] << ',' << psrf[1][x] << ',' << psrf[2][x] << ',' << psrf[3][x] << ',' << psrf[4][x] << '\n';
@@ -374,15 +374,16 @@ int main(int argc, char *argv[]) {
                 samples_stream << "\"\",ess / runtime," << ess[0][x] / dur[0][x] << ',' << ess[1][x] / dur[1][x] << ',' << ess[2][x] / dur[2][x] << ',' << ess[3][x] / dur[3][x] << ',' << ess[4][x] / dur[4][x] << '\n';
                 samples_stream << "\"\",ess / samples," << ess[0][x] / nr_s[0][x] << ',' << ess[1][x] / nr_s[1][x] << ',' << ess[2][x] / nr_s[2][x] << ',' << ess[3][x] / nr_s[3][x] << ',' << ess[4][x] / nr_s[4][x] << '\n';
             
-                samples_stream << "\"\"\n";
+                samples_stream << "\"\"\n";*/
                 
 
                 x = 4;
-                samples_stream << "Volesti GaBW w rounding," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
+                samples_stream << "Volesti GaBW w rounding,runtime," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
                 samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
                 samples_stream << "\"\",psrf," << psrf[0][x] << ',' << psrf[1][x] << ',' << psrf[2][x] << ',' << psrf[3][x] << ',' << psrf[4][x] << '\n';
                 samples_stream << "\"\",ess," << ess[0][x] << ',' << ess[1][x] << ',' << ess[2][x] << ',' << ess[3][x] << ',' << ess[4][x] << '\n';
                 samples_stream << "\"\",ess / runtime," << ess[0][x] / dur[0][x] << ',' << ess[1][x] / dur[1][x] << ',' << ess[2][x] / dur[2][x] << ',' << ess[3][x] / dur[3][x] << ',' << ess[4][x] / dur[4][x] << '\n';
+                samples_stream << "\"\",ess / samples," << ess[0][x] / nr_s[0][x] << ',' << ess[1][x] / nr_s[1][x] << ',' << ess[2][x] / nr_s[2][x] << ',' << ess[3][x] / nr_s[3][x] << ',' << ess[4][x] / nr_s[4][x] << '\n';
                 
                 samples_stream << "\"\"" << std::endl;
 
