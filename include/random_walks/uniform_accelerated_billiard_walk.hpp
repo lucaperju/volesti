@@ -90,7 +90,8 @@ struct AcceleratedBilliardWalk
         inline void apply(GenericPolytope &P,
                           Point &p,   // a point to start
                           unsigned int const& walk_length,
-                          RandomNumberGenerator &rng)
+                          RandomNumberGenerator &rng,
+                          unsigned int &cnt_iter)
         {
             unsigned int n = P.dimension();
             NT T;
@@ -148,6 +149,7 @@ struct AcceleratedBilliardWalk
                 }
             }
             p = _p;
+            cnt_iter += it;
         }
 
 

@@ -54,12 +54,13 @@ struct RandomPointGenerator
                       unsigned int const& walk_length,
                       PointList &randPoints,
                       WalkPolicy &policy,
-                      RandomNumberGenerator &rng)
+                      RandomNumberGenerator &rng,
+                      unsigned int &cnt_iter)
     {
         Walk walk(P, p, rng);
         for (unsigned int i=0; i<rnum; ++i)
         {
-            walk.template apply(P, p, walk_length, rng);
+            walk.template apply(P, p, walk_length, rng, cnt_iter);
             policy.apply(randPoints, p);
         }
     }
@@ -116,12 +117,13 @@ struct MultivariateGaussianRandomPointGenerator
                       unsigned int const& walk_length,
                       PointList &randPoints,
                       WalkPolicy &policy,
-                      RandomNumberGenerator &rng)
+                      RandomNumberGenerator &rng,
+                      unsigned int &cnt_iter)
     {
         Walk walk(P, p, E, rng);
         for (unsigned int i=0; i<rnum; ++i)
         {
-            walk.template apply(P, p, E, walk_length, rng);
+            walk.template apply(P, p, E, walk_length, rng, cnt_iter);
             policy.apply(randPoints, p);
         }
     }

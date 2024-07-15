@@ -38,6 +38,9 @@
 #include "preprocess/inscribed_ellipsoid_rounding.hpp"
 
 
+double duration, maxPsrf;
+unsigned int minEss, nr_samples, nr_it;
+
 template 
 <
 typename Polytope,
@@ -78,8 +81,10 @@ void sample_aBW (Polytope &P, RandomNumberGenerator &rng, std::list<Point> &rand
         typedef RandomPointGenerator <walk> RandomPointGenerator;
         PushBackWalkPolicy push_back_policy;
 
+        nr_it = 0;
+
         RandomPointGenerator::apply(P, p, N, 1, randPoints,
-                                    push_back_policy, rng);
+                                    push_back_policy, rng, nr_it);
 }
 
 template 
@@ -121,19 +126,15 @@ void sample_gaBW (Polytope &P, RandomNumberGenerator &rng, std::list<Point> &ran
 
         start = std::chrono::high_resolution_clock::now();
 
-        walk w(P, p, E, rng);
-        for (unsigned int i = 0; i < N; ++i)
-        {
-            w.template apply(P, p, E, 1, rng);
-            push_back_policy.apply(randPoints, p);
-        }
+        nr_it = 0;
+
+        RandomPointGenerator::apply(P, p, E, N, 1, randPoints,
+                                    push_back_policy, rng, nr_it);
 
         stop = std::chrono::high_resolution_clock::now();
 
         total_time = stop - start;
         std::cout << "Points sampled in " << total_time.count() << '\n';
-        //RandomPointGenerator::apply(P, p, E, N, 1, randPoints,
-        //                            push_back_policy, rng);
 }
 
 
@@ -150,8 +151,6 @@ double get_hash(Polytope const &P) {
     return sf;
 }
 
-double duration, maxPsrf;
-unsigned int minEss, nr_samples;
 
 template <int simdLen>
 void sample_hpoly(int n_samples = 80000,
@@ -307,6 +306,7 @@ int main(int argc, char *argv[]) {
                 double psrf[5][5];
                 double ess[5][5];
                 double nr_s[5][5];
+                double nr_iter[5][5];
                 for(int a = 0; a <= 4; ++a)
                     for(int b = 0; b <= 4; b+=2) {
                         if(atoi(argv[1]) == 1)
@@ -321,6 +321,7 @@ int main(int argc, char *argv[]) {
                         psrf[a][b] = maxPsrf;
                         ess[a][b] = minEss;
                         nr_s[a][b] = nr_samples;
+                        nr_iter[a][b] = nr_it;
                         samples_stream << a << ' ' << b << ' ' << duration << ' ' << maxPsrf << ' ' << minEss << ' ' << nr_samples << std::endl;
                     }
                 samples_stream << "\n\n\n";
@@ -340,8 +341,11 @@ int main(int argc, char *argv[]) {
                 samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
                 samples_stream << "\"\",psrf," << psrf[0][x] << ',' << psrf[1][x] << ',' << psrf[2][x] << ',' << psrf[3][x] << ',' << psrf[4][x] << '\n';
                 samples_stream << "\"\",ess," << ess[0][x] << ',' << ess[1][x] << ',' << ess[2][x] << ',' << ess[3][x] << ',' << ess[4][x] << '\n';
+                samples_stream << "\"\",nr iter," << nr_iter[0][x] << ',' << nr_iter[1][x] << ',' << nr_iter[2][x] << ',' << nr_iter[3][x] << ',' << nr_iter[4][x] << '\n';
                 samples_stream << "\"\",ess / runtime," << ess[0][x] / dur[0][x] << ',' << ess[1][x] / dur[1][x] << ',' << ess[2][x] / dur[2][x] << ',' << ess[3][x] / dur[3][x] << ',' << ess[4][x] / dur[4][x] << '\n';
+                samples_stream << "\"\",nr iter / runtime," << nr_iter[0][x] / dur[0][x] << ',' << nr_iter[1][x] / dur[1][x] << ',' << nr_iter[2][x] / dur[2][x] << ',' << nr_iter[3][x] / dur[3][x] << ',' << nr_iter[4][x] / dur[4][x] << '\n';
                 samples_stream << "\"\",ess / samples," << ess[0][x] / nr_s[0][x] << ',' << ess[1][x] / nr_s[1][x] << ',' << ess[2][x] / nr_s[2][x] << ',' << ess[3][x] / nr_s[3][x] << ',' << ess[4][x] / nr_s[4][x] << '\n';
+                samples_stream << "\"\",ess / nr iter," << ess[0][x] / nr_iter[0][x] << ',' << ess[1][x] / nr_iter[1][x] << ',' << ess[2][x] / nr_iter[2][x] << ',' << ess[3][x] / nr_iter[3][x] << ',' << ess[4][x] / nr_iter[4][x] << '\n';
                 
                 samples_stream << "\"\"\n";
 
@@ -360,8 +364,11 @@ int main(int argc, char *argv[]) {
                 samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
                 samples_stream << "\"\",psrf," << psrf[0][x] << ',' << psrf[1][x] << ',' << psrf[2][x] << ',' << psrf[3][x] << ',' << psrf[4][x] << '\n';
                 samples_stream << "\"\",ess," << ess[0][x] << ',' << ess[1][x] << ',' << ess[2][x] << ',' << ess[3][x] << ',' << ess[4][x] << '\n';
+                samples_stream << "\"\",nr iter," << nr_iter[0][x] << ',' << nr_iter[1][x] << ',' << nr_iter[2][x] << ',' << nr_iter[3][x] << ',' << nr_iter[4][x] << '\n';
                 samples_stream << "\"\",ess / runtime," << ess[0][x] / dur[0][x] << ',' << ess[1][x] / dur[1][x] << ',' << ess[2][x] / dur[2][x] << ',' << ess[3][x] / dur[3][x] << ',' << ess[4][x] / dur[4][x] << '\n';
+                samples_stream << "\"\",nr iter / runtime," << nr_iter[0][x] / dur[0][x] << ',' << nr_iter[1][x] / dur[1][x] << ',' << nr_iter[2][x] / dur[2][x] << ',' << nr_iter[3][x] / dur[3][x] << ',' << nr_iter[4][x] / dur[4][x] << '\n';
                 samples_stream << "\"\",ess / samples," << ess[0][x] / nr_s[0][x] << ',' << ess[1][x] / nr_s[1][x] << ',' << ess[2][x] / nr_s[2][x] << ',' << ess[3][x] / nr_s[3][x] << ',' << ess[4][x] / nr_s[4][x] << '\n';
+                samples_stream << "\"\",ess / nr iter," << ess[0][x] / nr_iter[0][x] << ',' << ess[1][x] / nr_iter[1][x] << ',' << ess[2][x] / nr_iter[2][x] << ',' << ess[3][x] / nr_iter[3][x] << ',' << ess[4][x] / nr_iter[4][x] << '\n';
                 
                 samples_stream << "\"\"\n";
                 
@@ -378,12 +385,15 @@ int main(int argc, char *argv[]) {
                 
 
                 x = 4;
-                samples_stream << "Volesti GaBW w rounding,runtime," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
+                samples_stream << "Volesti aBW w rounding,runtime," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
                 samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
                 samples_stream << "\"\",psrf," << psrf[0][x] << ',' << psrf[1][x] << ',' << psrf[2][x] << ',' << psrf[3][x] << ',' << psrf[4][x] << '\n';
                 samples_stream << "\"\",ess," << ess[0][x] << ',' << ess[1][x] << ',' << ess[2][x] << ',' << ess[3][x] << ',' << ess[4][x] << '\n';
+                samples_stream << "\"\",nr iter," << nr_iter[0][x] << ',' << nr_iter[1][x] << ',' << nr_iter[2][x] << ',' << nr_iter[3][x] << ',' << nr_iter[4][x] << '\n';
                 samples_stream << "\"\",ess / runtime," << ess[0][x] / dur[0][x] << ',' << ess[1][x] / dur[1][x] << ',' << ess[2][x] / dur[2][x] << ',' << ess[3][x] / dur[3][x] << ',' << ess[4][x] / dur[4][x] << '\n';
+                samples_stream << "\"\",nr iter / runtime," << nr_iter[0][x] / dur[0][x] << ',' << nr_iter[1][x] / dur[1][x] << ',' << nr_iter[2][x] / dur[2][x] << ',' << nr_iter[3][x] / dur[3][x] << ',' << nr_iter[4][x] / dur[4][x] << '\n';
                 samples_stream << "\"\",ess / samples," << ess[0][x] / nr_s[0][x] << ',' << ess[1][x] / nr_s[1][x] << ',' << ess[2][x] / nr_s[2][x] << ',' << ess[3][x] / nr_s[3][x] << ',' << ess[4][x] / nr_s[4][x] << '\n';
+                samples_stream << "\"\",ess / nr iter," << ess[0][x] / nr_iter[0][x] << ',' << ess[1][x] / nr_iter[1][x] << ',' << ess[2][x] / nr_iter[2][x] << ',' << ess[3][x] / nr_iter[3][x] << ',' << ess[4][x] / nr_iter[4][x] << '\n';
                 
                 samples_stream << "\"\"" << std::endl;
 

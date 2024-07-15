@@ -105,7 +105,8 @@ struct GABW
                           Point &p,       // a point to return the result
                           MT const& E,   // covariance matrix representing the Gaussian distribution
                           unsigned int const& walk_length,
-                          RandomNumberGenerator &rng)
+                          RandomNumberGenerator &rng,
+                          unsigned int &cnt_iter)
         {
             unsigned int n = P.dimension();
             NT T;
@@ -180,8 +181,8 @@ struct GABW
                     was_reset = true;
                 }
             }
-
             p = _p;
+            cnt_iter += it;
         }
 
     private :
