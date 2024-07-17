@@ -106,6 +106,10 @@ public:
         return b;
     }
 
+    bool is_normalized ()
+    {
+        return _normalized;
+    }
 
     // print polytope in Ax <= b format
     void print() const
