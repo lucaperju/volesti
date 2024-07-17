@@ -16,6 +16,10 @@
 
 
 #include "Eigen/Eigen"
+#include <vector>
+#include "misc/misc.h"
+#include "misc/poset.h"
+#include "helper_functions.hpp"
 #include "cartesian_geom/cartesian_kernel.h"
 #include "generators/order_polytope_generator.h"
 #include "diagnostics/effective_sample_size.hpp"
@@ -26,13 +30,9 @@
 #include "preprocess/crhmc/crhmc_problem.h"
 #include "sampling/random_point_generators.hpp"
 #include "sampling/sampling.hpp"
-#include "misc/misc.h"
-#include "misc/poset.h"
 #include "random.hpp"
-#include <vector>
 #include "random_walks/random_walks.hpp"
 #include "generators/known_polytope_generators.h"
-#include "helper_functions.hpp"
 #include "volume/rotating.hpp"
 #include "convex_bodies/orderpolytope.h"
 #include "preprocess/inscribed_ellipsoid_rounding.hpp"
@@ -58,7 +58,7 @@ void sample_cdhr (Polytope &P, RandomNumberGenerator &rng, std::list<Point> &ran
         typedef RandomPointGenerator <walk> RandomPointGenerator;
         PushBackWalkPolicy push_back_policy;
 
-        RandomPointGenerator::apply(P, p, N, 1, randPoints,
+        RandomPointGenerator::apply<Polytope::MT, Polytope::VT>(P, p, N, 1, randPoints,
                                     push_back_policy, rng);
 }
 
@@ -254,7 +254,7 @@ void sample_hpoly(int n_samples = 80000,
     }
     // std::cout << samples << std::endl;
     unsigned int min_ess;
-    NT max_psrf;
+    NT max_psrf = -1;
     effective_sample_size<NT, VT>(samples, min_ess);
     max_psrf = max_interval_psrf<NT,VT,MT>(samples);
     std::cerr << "min_ess: " << min_ess << '\n';
@@ -307,21 +307,21 @@ int main(int argc, char *argv[]) {
                 double ess[5][5];
                 double nr_s[5][5];
                 double nr_iter[5][5];
-                for(int a = 0; a <= 4; ++a)
+                for(int a = 0; a <= 3; ++a)
                     for(int b = 0; b <= 4; b+=2) {
                         if(atoi(argv[1]) == 1)
-                            run_main<1>(60 * n, 10, n, m, a, b);
+                            run_main<1>(10 * n, 10, n, m, a, b);
                         else if(atoi(argv[1]) == 4)
-                            run_main<4>(60 * n, 10, n, m, a, b);
+                            run_main<4>(10 * n, 10, n, m, a, b);
                         else if(atoi(argv[1]) == 8)
-                            run_main<8>(60 * n, 10, n, m, a, b);
+                            run_main<8>(10 * n, 10, n, m, a, b);
                         else if(atoi(argv[1]) == 16)
-                            run_main<16>(60 * n, 10, n, m, a, b);
+                            run_main<16>(10 * n, 10, n, m, a, b);
                         dur[a][b] = duration;
                         psrf[a][b] = maxPsrf;
                         ess[a][b] = minEss;
                         nr_s[a][b] = nr_samples;
-                        nr_iter[a][b] = nr_it;
+                        nr_iter[a][b] = nr_it * 1.0 / nr_samples;
                         samples_stream << a << ' ' << b << ' ' << duration << ' ' << maxPsrf << ' ' << minEss << ' ' << nr_samples << std::endl;
                     }
                 samples_stream << "\n\n\n";
@@ -341,11 +341,11 @@ int main(int argc, char *argv[]) {
                 samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
                 samples_stream << "\"\",psrf," << psrf[0][x] << ',' << psrf[1][x] << ',' << psrf[2][x] << ',' << psrf[3][x] << ',' << psrf[4][x] << '\n';
                 samples_stream << "\"\",ess," << ess[0][x] << ',' << ess[1][x] << ',' << ess[2][x] << ',' << ess[3][x] << ',' << ess[4][x] << '\n';
-                samples_stream << "\"\",nr iter," << nr_iter[0][x] << ',' << nr_iter[1][x] << ',' << nr_iter[2][x] << ',' << nr_iter[3][x] << ',' << nr_iter[4][x] << '\n';
+                samples_stream << "\"\",reflec," << nr_iter[0][x] << ',' << nr_iter[1][x] << ',' << nr_iter[2][x] << ',' << nr_iter[3][x] << ',' << nr_iter[4][x] << '\n';
                 samples_stream << "\"\",ess / runtime," << ess[0][x] / dur[0][x] << ',' << ess[1][x] / dur[1][x] << ',' << ess[2][x] / dur[2][x] << ',' << ess[3][x] / dur[3][x] << ',' << ess[4][x] / dur[4][x] << '\n';
-                samples_stream << "\"\",nr iter / runtime," << nr_iter[0][x] / dur[0][x] << ',' << nr_iter[1][x] / dur[1][x] << ',' << nr_iter[2][x] / dur[2][x] << ',' << nr_iter[3][x] / dur[3][x] << ',' << nr_iter[4][x] / dur[4][x] << '\n';
+                samples_stream << "\"\",reflec / runtime," << nr_iter[0][x] / dur[0][x] << ',' << nr_iter[1][x] / dur[1][x] << ',' << nr_iter[2][x] / dur[2][x] << ',' << nr_iter[3][x] / dur[3][x] << ',' << nr_iter[4][x] / dur[4][x] << '\n';
                 samples_stream << "\"\",ess / samples," << ess[0][x] / nr_s[0][x] << ',' << ess[1][x] / nr_s[1][x] << ',' << ess[2][x] / nr_s[2][x] << ',' << ess[3][x] / nr_s[3][x] << ',' << ess[4][x] / nr_s[4][x] << '\n';
-                samples_stream << "\"\",ess / nr iter," << ess[0][x] / nr_iter[0][x] << ',' << ess[1][x] / nr_iter[1][x] << ',' << ess[2][x] / nr_iter[2][x] << ',' << ess[3][x] / nr_iter[3][x] << ',' << ess[4][x] / nr_iter[4][x] << '\n';
+                samples_stream << "\"\",ess / reflec," << ess[0][x] / nr_iter[0][x] << ',' << ess[1][x] / nr_iter[1][x] << ',' << ess[2][x] / nr_iter[2][x] << ',' << ess[3][x] / nr_iter[3][x] << ',' << ess[4][x] / nr_iter[4][x] << '\n';
                 
                 samples_stream << "\"\"\n";
 
@@ -364,11 +364,11 @@ int main(int argc, char *argv[]) {
                 samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
                 samples_stream << "\"\",psrf," << psrf[0][x] << ',' << psrf[1][x] << ',' << psrf[2][x] << ',' << psrf[3][x] << ',' << psrf[4][x] << '\n';
                 samples_stream << "\"\",ess," << ess[0][x] << ',' << ess[1][x] << ',' << ess[2][x] << ',' << ess[3][x] << ',' << ess[4][x] << '\n';
-                samples_stream << "\"\",nr iter," << nr_iter[0][x] << ',' << nr_iter[1][x] << ',' << nr_iter[2][x] << ',' << nr_iter[3][x] << ',' << nr_iter[4][x] << '\n';
+                samples_stream << "\"\",reflec," << nr_iter[0][x] << ',' << nr_iter[1][x] << ',' << nr_iter[2][x] << ',' << nr_iter[3][x] << ',' << nr_iter[4][x] << '\n';
                 samples_stream << "\"\",ess / runtime," << ess[0][x] / dur[0][x] << ',' << ess[1][x] / dur[1][x] << ',' << ess[2][x] / dur[2][x] << ',' << ess[3][x] / dur[3][x] << ',' << ess[4][x] / dur[4][x] << '\n';
-                samples_stream << "\"\",nr iter / runtime," << nr_iter[0][x] / dur[0][x] << ',' << nr_iter[1][x] / dur[1][x] << ',' << nr_iter[2][x] / dur[2][x] << ',' << nr_iter[3][x] / dur[3][x] << ',' << nr_iter[4][x] / dur[4][x] << '\n';
+                samples_stream << "\"\",reflec / runtime," << nr_iter[0][x] / dur[0][x] << ',' << nr_iter[1][x] / dur[1][x] << ',' << nr_iter[2][x] / dur[2][x] << ',' << nr_iter[3][x] / dur[3][x] << ',' << nr_iter[4][x] / dur[4][x] << '\n';
                 samples_stream << "\"\",ess / samples," << ess[0][x] / nr_s[0][x] << ',' << ess[1][x] / nr_s[1][x] << ',' << ess[2][x] / nr_s[2][x] << ',' << ess[3][x] / nr_s[3][x] << ',' << ess[4][x] / nr_s[4][x] << '\n';
-                samples_stream << "\"\",ess / nr iter," << ess[0][x] / nr_iter[0][x] << ',' << ess[1][x] / nr_iter[1][x] << ',' << ess[2][x] / nr_iter[2][x] << ',' << ess[3][x] / nr_iter[3][x] << ',' << ess[4][x] / nr_iter[4][x] << '\n';
+                samples_stream << "\"\",ess / reflec," << ess[0][x] / nr_iter[0][x] << ',' << ess[1][x] / nr_iter[1][x] << ',' << ess[2][x] / nr_iter[2][x] << ',' << ess[3][x] / nr_iter[3][x] << ',' << ess[4][x] / nr_iter[4][x] << '\n';
                 
                 samples_stream << "\"\"\n";
                 
@@ -389,11 +389,11 @@ int main(int argc, char *argv[]) {
                 samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
                 samples_stream << "\"\",psrf," << psrf[0][x] << ',' << psrf[1][x] << ',' << psrf[2][x] << ',' << psrf[3][x] << ',' << psrf[4][x] << '\n';
                 samples_stream << "\"\",ess," << ess[0][x] << ',' << ess[1][x] << ',' << ess[2][x] << ',' << ess[3][x] << ',' << ess[4][x] << '\n';
-                samples_stream << "\"\",nr iter," << nr_iter[0][x] << ',' << nr_iter[1][x] << ',' << nr_iter[2][x] << ',' << nr_iter[3][x] << ',' << nr_iter[4][x] << '\n';
+                samples_stream << "\"\",reflec," << nr_iter[0][x] << ',' << nr_iter[1][x] << ',' << nr_iter[2][x] << ',' << nr_iter[3][x] << ',' << nr_iter[4][x] << '\n';
                 samples_stream << "\"\",ess / runtime," << ess[0][x] / dur[0][x] << ',' << ess[1][x] / dur[1][x] << ',' << ess[2][x] / dur[2][x] << ',' << ess[3][x] / dur[3][x] << ',' << ess[4][x] / dur[4][x] << '\n';
-                samples_stream << "\"\",nr iter / runtime," << nr_iter[0][x] / dur[0][x] << ',' << nr_iter[1][x] / dur[1][x] << ',' << nr_iter[2][x] / dur[2][x] << ',' << nr_iter[3][x] / dur[3][x] << ',' << nr_iter[4][x] / dur[4][x] << '\n';
+                samples_stream << "\"\",reflec / runtime," << nr_iter[0][x] / dur[0][x] << ',' << nr_iter[1][x] / dur[1][x] << ',' << nr_iter[2][x] / dur[2][x] << ',' << nr_iter[3][x] / dur[3][x] << ',' << nr_iter[4][x] / dur[4][x] << '\n';
                 samples_stream << "\"\",ess / samples," << ess[0][x] / nr_s[0][x] << ',' << ess[1][x] / nr_s[1][x] << ',' << ess[2][x] / nr_s[2][x] << ',' << ess[3][x] / nr_s[3][x] << ',' << ess[4][x] / nr_s[4][x] << '\n';
-                samples_stream << "\"\",ess / nr iter," << ess[0][x] / nr_iter[0][x] << ',' << ess[1][x] / nr_iter[1][x] << ',' << ess[2][x] / nr_iter[2][x] << ',' << ess[3][x] / nr_iter[3][x] << ',' << ess[4][x] / nr_iter[4][x] << '\n';
+                samples_stream << "\"\",ess / reflec," << ess[0][x] / nr_iter[0][x] << ',' << ess[1][x] / nr_iter[1][x] << ',' << ess[2][x] / nr_iter[2][x] << ',' << ess[3][x] / nr_iter[3][x] << ',' << ess[4][x] / nr_iter[4][x] << '\n';
                 
                 samples_stream << "\"\"" << std::endl;
 

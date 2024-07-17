@@ -116,6 +116,8 @@ std::tuple<MT, VT, NT> inscribed_ellipsoid_rounding(Polytope &P,
         x0 = VT::Zero(d);
 
         // Check the roundness of the polytope
+        if(iter == 1)
+            std::cout << "HERE!!!! the R/r is this!!!!!!! " << std::abs(R / r) << std::endl;
         if(((std::abs(R / r) <= max_eig_ratio && converged) || iter >= max_iterations)) {
             break;
         }

@@ -110,7 +110,7 @@ public:
     std::pair<Point, NT> ComputeInnerBall()
     {
         normalize();
-        if (_inner_ball.second <= NT(0)) {
+        if (NT(0) <= NT(0)) {
 
             NT const tol = 1e-08;
             std::tuple<VT, NT, bool> inner_ball = max_inscribed_ball(A, b, 5000, tol);
