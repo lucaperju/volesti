@@ -189,7 +189,7 @@ struct MultivariateGaussianRandomPointGenerator
                 if(min_ess >= rnum)
                     break;
             }
-            walk.template apply(P, p, E, walk_length, rng, cnt_iter);
+            walk.template apply(P, p, walk_length, rng, cnt_iter);
             policy.apply(randPoints, p);
         }
     }

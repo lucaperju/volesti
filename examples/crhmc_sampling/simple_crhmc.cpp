@@ -105,7 +105,7 @@ void sample_gaBW (Polytope &P, RandomNumberGenerator &rng, std::list<Point> &ran
         std::cout << "trying to compute the inner ball" << std::endl;
 
         Point p = P.ComputeInnerBall().first;
-        typedef typename GABW::template Walk
+        typedef typename GaussianAcceleratedBilliardWalk::template Walk
                 <
                         Polytope,
                         RandomNumberGenerator
