@@ -84,7 +84,7 @@ void sample_aBW (Polytope &P, RandomNumberGenerator &rng, std::list<Point> &rand
         nr_it = 0;
 
         RandomPointGenerator::apply(P, p, N, 1, randPoints,
-                                    push_back_policy, rng, nr_it);
+                                    push_back_policy, rng);
 }
 
 template 
@@ -117,7 +117,16 @@ void sample_gaBW (Polytope &P, RandomNumberGenerator &rng, std::list<Point> &ran
 
         std::tuple<MT, VT, NT> ellipsoid = compute_inscribed_ellipsoid<MT, EllipsoidType::MAX_ELLIPSOID>
         (P.get_mat(), P.get_vec(), p.getCoefficients(), 500, std::pow(10, -6.0), std::pow(10, -4.0));
-        const MT E = get<0>(ellipsoid);
+        
+        typename Polytope::MT E;
+        if constexpr (!std::is_same<typename Polytope::MT, MT>::value) {
+            E = get<0>(ellipsoid).sparseView();
+        } else {
+            E = get<0>(ellipsoid);
+        }
+
+        
+
 
         stop = std::chrono::high_resolution_clock::now();
 
@@ -129,7 +138,7 @@ void sample_gaBW (Polytope &P, RandomNumberGenerator &rng, std::list<Point> &ran
         nr_it = 0;
 
         RandomPointGenerator::apply(P, p, E, N, 1, randPoints,
-                                    push_back_policy, rng, nr_it);
+                                    push_back_policy, rng);
 
         stop = std::chrono::high_resolution_clock::now();
 
@@ -162,9 +171,9 @@ void sample_hpoly(int n_samples = 80000,
     using Func = ZeroScalarFunctor<Point>;
     using Grad = ZeroFunctor<Point>;
     using Hess = ZeroFunctor<Point>;
-    using PolytopeType = HPolytope<Point>;
+    using PolytopeType = HPolytope<Point, Eigen::SparseMatrix<NT> >;
     using VT = Eigen::Matrix<NT, Eigen::Dynamic, 1>;
-    using MT = PolytopeType::MT;
+    using MT = PolytopeType::DenseMT;
     typedef boost::mt19937 PolyRNGType;
     using RNG = BoostRandomNumberGenerator<boost::mt19937, NT>;
 

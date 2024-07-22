@@ -56,8 +56,7 @@ struct RandomPointGenerator
                       unsigned int const& walk_length,
                       PointList &randPoints,
                       WalkPolicy &policy,
-                      RandomNumberGenerator &rng,
-                      unsigned int &cnt_iter)
+                      RandomNumberGenerator &rng)
     {
         
         using VT = typename Polytope::VT;
@@ -71,7 +70,7 @@ struct RandomPointGenerator
         for (unsigned int i=0; ok || i<rnum; ++i)
         {   
             
-            stop = std::chrono::high_resolution_clock::now();
+            /*stop = std::chrono::high_resolution_clock::now();
 
             std::chrono::duration<double> total_time = stop - start;
             if(total_time.count() >= 1800)
@@ -95,8 +94,8 @@ struct RandomPointGenerator
                     std::cout << i << ' ' << min_ess << std::endl;
                 if(min_ess >= rnum)
                     break;
-            }
-            walk.template apply(P, p, walk_length, rng, cnt_iter);
+            }*/
+            walk.template apply(P, p, walk_length, rng);
             policy.apply(randPoints, p);
         }
     }
@@ -153,42 +152,16 @@ struct MultivariateGaussianRandomPointGenerator
                       unsigned int const& walk_length,
                       PointList &randPoints,
                       WalkPolicy &policy,
-                      RandomNumberGenerator &rng,
-                      unsigned int &cnt_iter)
+                      RandomNumberGenerator &rng)
     {
         
         using VT = typename Polytope::VT;
         using MT = typename Polytope::MT;
         bool ok = true; // true if I want to sample until ess = rnum
 
-        std::chrono::time_point<std::chrono::high_resolution_clock> start, stop;
-        start = std::chrono::high_resolution_clock::now();
-
         Walk walk(P, p, E, rng);
         for (unsigned int i=0; ok || i<rnum; ++i)
         {   
-            
-            stop = std::chrono::high_resolution_clock::now();
-
-            std::chrono::duration<double> total_time = stop - start;
-            if(total_time.count() >= 1800)
-                break;
-
-            if(ok)
-            if(i % 1000 == 0 && i > 0)
-            {
-                MT samples = MT(P.dimension(), randPoints.size());
-
-                int j=0;
-                for (typename PointList::iterator it = randPoints.begin(); it != randPoints.end(); ++it){
-                    samples.col(j) = (*it).getCoefficients();
-                    j++;
-                }
-                unsigned int min_ess;
-                effective_sample_size<double, VT>(samples, min_ess);
-                if(min_ess >= rnum)
-                    break;
-            }
             walk.template apply(P, p, walk_length, rng);
             policy.apply(randPoints, p);
         }

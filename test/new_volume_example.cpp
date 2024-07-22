@@ -36,6 +36,8 @@
 #include "volume/volume_cooling_gaussians.hpp"
 #include "volume/volume_cooling_gaussians.hpp"
 
+#include "convex_bodies/zpolytope.h"
+
 int main()
 {
     typedef double NT;
