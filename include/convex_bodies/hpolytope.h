@@ -883,27 +883,11 @@ public:
     void normalize()
     {
         NT row_norm;
-        if constexpr (!std::is_same< MT, Eigen::SparseMatrix<NT> >::value ) {
-            for (int i = 0; i < num_of_hyperplanes(); ++i)
-            {
-                row_norm = A.row(i).norm();
-                A.row(i) = A.row(i) / row_norm;
-                b(i) = b(i) / row_norm;
-            }
-        } else {
-            for(int i = 0; i < num_of_hyperplanes(); ++i)
-            {
-                row_norm = 0.0;
-                for(typename Eigen::SparseMatrix<NT>::InnerIterator it(A, i); it; ++it) {
-                    row_norm += it.value() * it.value();
-                }
-                row_norm = std::sqrt(row_norm);
-                if(row_norm != 0.0) {
-                    for (typename Eigen::SparseMatrix<NT>::InnerIterator it(A, i); it; ++it) {
-                        it.valueRef() /= row_norm;
-                    }
-                    b(i) = b(i) / row_norm;
-                }
+        for (int i = 0; i < num_of_hyperplanes(); ++i) {
+            row_norm = A.row(i).norm();
+            if (row_norm != 0) {
+                A.row(i) /= row_norm;
+                b(i) /= row_norm;
             }
         }
         normalized = true;
