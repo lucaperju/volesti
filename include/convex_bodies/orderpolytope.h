@@ -95,7 +95,7 @@ public:
     }
 
     // return the matrix A
-    MT get_full_mat() const
+    MT get_dense_mat() const
     {
         return _A;
     }
