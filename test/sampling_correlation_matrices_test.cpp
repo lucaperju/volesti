@@ -64,6 +64,33 @@ void check_output(PointList &randPoints, int num_points, int n){
     CHECK(score.maxCoeff() < 1.1);
 }
 
+template<typename NT, typename VT, typename MT>
+void check_output_MT(std::list<MT> &randCorMatrices, int num_points, int n){
+    int d = n*(n-1)/2, count = 0;
+    MT A;
+    Eigen::LDLT<MT> mat_ldlt;
+    for(auto& mat : randCorMatrices){
+        mat_ldlt = Eigen::LDLT<MT>(mat);
+    	if(mat_ldlt.info() == Eigen::NumericalIssue || !mat_ldlt.isPositive()){
+            ++count;
+    	}
+    }
+    std::cout << "Fails " << count << " / " << num_points << " samples\n";
+    CHECK(count == 0);
+
+    MT samples(d, num_points);
+    unsigned int jj = 0;
+    for(const auto& mat : randCorMatrices){
+        samples.col(jj) = getCoefficientsFromMatrix<NT, MT>(mat);
+    	jj++;
+    }
+
+    VT score = univariate_psrf<NT, VT>(samples);
+    std::cout << "psrf = " << score.maxCoeff() << std::endl;
+
+    CHECK(score.maxCoeff() < 1.1);
+}
+
 template <typename NT>
 void test_corre_spectra_classes(unsigned int const n){
     typedef Cartesian<NT>                                       Kernel;
@@ -136,18 +163,18 @@ void test_new_uniform_MT(const unsigned int n, const unsigned int num_points = 1
     std::cout << "Test new sampling 2 : "<< num_points << " uniform correlation matrices of size " << n << std::endl;
     std::chrono::steady_clock::time_point start, end;
     double time;
-    std::vector<Point> randPoints;
+    std::list<MT> randCorMatrices;
     unsigned int walkL = 1;
 
     start = std::chrono::steady_clock::now();
 
-    uniform_correlation_sampling_MT<WalkType, Point, RNGType>(n, randPoints, walkL, num_points, 0);
+    uniform_correlation_sampling_MT<WalkType, Point, RNGType>(n, randCorMatrices, walkL, num_points, 0);
 
     end = std::chrono::steady_clock::now();
     time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     std::cout << "Elapsed time : " << time << " (ms)" << std::endl;
 
-    check_output<NT, VT, MT>(randPoints, num_points, n);
+    check_output_MT<NT, VT, MT>(randCorMatrices, num_points, n);
 }
 
 int n = 3;

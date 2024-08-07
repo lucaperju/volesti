@@ -160,8 +160,8 @@ struct MultivariateGaussianRandomPointGenerator
         bool ok = true; // true if I want to sample until ess = rnum
 
         Walk walk(P, p, E, rng);
-        for (unsigned int i=0; ok || i<rnum; ++i)
-        {   
+        for (unsigned int i=0; i<rnum; ++i)
+        {
             walk.template apply(P, p, walk_length, rng);
             policy.apply(randPoints, p);
         }

@@ -26,7 +26,8 @@ compute_inscribed_ellipsoid(Custom_MT A, VT b, VT const& x0,
     {
         return max_inscribed_ellipsoid<MT>(A, b, x0, maxiter, tol, reg);
     } else if constexpr (ellipsoid_type == EllipsoidType::LOG_BARRIER ||
-                         ellipsoid_type == EllipsoidType::VOLUMETRIC_BARRIER)
+                         ellipsoid_type == EllipsoidType::VOLUMETRIC_BARRIER ||
+                         ellipsoid_type == EllipsoidType::VAIDYA_BARRIER)
     {
         return barrier_center_ellipsoid_linear_ineq<MT, ellipsoid_type, NT>(A, b, x0);
     } else
@@ -116,8 +117,6 @@ std::tuple<MT, VT, NT> inscribed_ellipsoid_rounding(Polytope &P,
         x0 = VT::Zero(d);
 
         // Check the roundness of the polytope
-        if(iter == 1)
-            std::cout << "HERE!!!! the R/r is this!!!!!!! " << std::abs(R / r) << std::endl;
         if(((std::abs(R / r) <= max_eig_ratio && converged) || iter >= max_iterations)) {
             break;
         }

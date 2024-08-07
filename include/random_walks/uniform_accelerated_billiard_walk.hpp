@@ -13,6 +13,7 @@
 
 #include "sampling/sphere.hpp"
 #include <Eigen/Eigen>
+#include <set>
 
 
 // Billiard walk which accelarates each step for uniform distribution
@@ -39,12 +40,13 @@ struct AcceleratedBilliardWalk
     struct update_parameters
     {
         update_parameters()
-                :   facet_prev(0), hit_ball(false), inner_vi_ak(0.0), ball_inner_norm(0.0)
+                :   facet_prev(0), hit_ball(false), inner_vi_ak(0.0), ball_inner_norm(0.0), moved_dist(0.0)
         {}
         int facet_prev;
         bool hit_ball;
         double inner_vi_ak;
         double ball_inner_norm;
+        double moved_dist;
     };
 
     parameters param;
@@ -59,7 +61,10 @@ struct AcceleratedBilliardWalk
     {
         typedef typename Polytope::PointType Point;
         typedef typename Polytope::MT MT;
+        typedef typename Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> DenseMT;
         typedef typename Point::FT NT;
+        using AA_type = std::conditional_t< std::is_same_v<MT, typename Eigen::SparseMatrix<NT, Eigen::RowMajor>>, typename Eigen::SparseMatrix<NT>, DenseMT >; 
+        // AA is sparse colMajor if MT is sparse rowMajor, and Dense otherwise
 
         template <typename GenericPolytope>
         Walk(GenericPolytope &P, Point const& p, RandomNumberGenerator &rng)
@@ -70,10 +75,10 @@ struct AcceleratedBilliardWalk
             _update_parameters = update_parameters();
             _L = compute_diameter<GenericPolytope>
                 ::template compute<NT>(P);
-            if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT>>::value) {
-                _AA = P.get_mat() * P.get_mat().transpose();
+            if constexpr (std::is_same<AA_type, Eigen::SparseMatrix<NT>>::value) {
+                _AA = (P.get_mat() * P.get_mat().transpose());
             } else {
-                _AA.noalias() = P.get_mat() * P.get_mat().transpose();
+                _AA.noalias() = (DenseMT)(P.get_mat() * P.get_mat().transpose());
             }
             _rho = 1000 * P.dimension(); // upper bound for the number of reflections (experimental)
             initialize(P, p, rng);
@@ -90,10 +95,10 @@ struct AcceleratedBilliardWalk
             _L = params.set_L ? params.m_L
                               : compute_diameter<GenericPolytope>
                                 ::template compute<NT>(P);
-            if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT>>::value) {
-                _AA = P.get_mat() * P.get_mat().transpose();
+            if constexpr (std::is_same<AA_type, Eigen::SparseMatrix<NT>>::value) {
+                _AA = (P.get_mat() * P.get_mat().transpose());
             } else {
-                _AA.noalias() = P.get_mat() * P.get_mat().transpose();
+                _AA.noalias() = (DenseMT)(P.get_mat() * P.get_mat().transpose());
             }
             _rho = 1000 * P.dimension(); // upper bound for the number of reflections (experimental)
             initialize(P, p, rng);
@@ -120,13 +125,7 @@ struct AcceleratedBilliardWalk
                 Point p0 = _p;
 
                 it = 0;
-                std::pair<NT, int> pbpair;
-                if(!was_reset) {
-                    pbpair = P.line_positive_intersect(_p, _v, _lambdas, _Av, _lambda_prev, _update_parameters);
-                } else {
-                    pbpair = P.line_first_positive_intersect(_p, _v, _lambdas, _Av, _update_parameters);
-                    was_reset = false;
-                }
+                std::pair<NT, int> pbpair = P.line_first_positive_intersect(_p, _v, _lambdas, _Av, _update_parameters);
                 
                 if (T <= pbpair.first) {
                     _p += (T * _v);
@@ -135,30 +134,56 @@ struct AcceleratedBilliardWalk
                 }
 
                 _lambda_prev = dl * pbpair.first;
-                _p += (_lambda_prev * _v);
+                if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>::value) {
+                    _update_parameters.moved_dist = _lambda_prev;
+                    _distances_set.clear();
+                    _distances_vec.setZero(P.num_of_hyperplanes());
+                    typename Point::Coeff b = P.get_vec();
+                    NT* b_data = b.data();
+                    NT* dvec_data = _distances_vec.data();
+                    NT* Ar_data = _lambdas.data();
+                    NT* Av_data = _Av.data();
+                    for(int i = 0; i < P.num_of_hyperplanes(); ++i) {
+                        *(dvec_data + i) = ( *(b_data + i) - (*(Ar_data + i)) ) / (*(Av_data + i));
+                        if(*(dvec_data + i) > _update_parameters.moved_dist)
+                            _distances_set.insert(std::make_pair(*(dvec_data + i), i));
+                    }
+                } else {
+                    _p += (_lambda_prev * _v);
+                }
                 T -= _lambda_prev;
                 P.compute_reflection(_v, _p, _update_parameters);
                 it++;
 
                 while (it < _rho)
-                {
-                    std::pair<NT, int> pbpair
-                            = P.line_positive_intersect(_p, _v, _lambdas, _Av, _lambda_prev,
-                                                        _AA, _update_parameters);
+                {   
+                    std::pair<NT, int> pbpair;
+                    if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>::value) {
+                        pbpair = P.line_positive_intersect(_p, _lambdas, _Av, _lambda_prev, _distances_vec,
+                                                           _distances_set, _AA, _update_parameters);
+                    } else {
+                        pbpair = P.line_positive_intersect(_p, _v, _lambdas, _Av, _lambda_prev,
+                                                           _AA, _update_parameters);
+                    }
                     if (T <= pbpair.first) {
                         _p += (T * _v);
                         _lambda_prev = T;
                         break;
                     }
                     _lambda_prev = dl * pbpair.first;
-                    _p += (_lambda_prev * _v);
+                    if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>::value) {
+                        _update_parameters.moved_dist += _lambda_prev;
+                    } else {
+                        _p += (_lambda_prev * _v);
+                    }
                     T -= _lambda_prev;
                     P.compute_reflection(_v, _p, _update_parameters);
                     it++;
                 }
+                _p += _update_parameters.moved_dist * _v;
+                _update_parameters.moved_dist = 0.0;
                 if (it == _rho) {
                     _p = p0;
-                    was_reset = true;
                 }
             }
             p = _p;
@@ -320,12 +345,13 @@ struct AcceleratedBilliardWalk
         Point _p;
         Point _v;
         NT _lambda_prev;
-        MT _AA;
+        AA_type _AA;
         unsigned int _rho;
         update_parameters _update_parameters;
         typename Point::Coeff _lambdas;
         typename Point::Coeff _Av;
-        bool was_reset;
+        typename Point::Coeff _distances_vec;
+        std::set<std::pair<NT, int>> _distances_set;
     };
 
 };

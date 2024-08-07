@@ -16,8 +16,11 @@
 #include "cartesian_geom/cartesian_kernel.h"
 #include "convex_bodies/spectrahedra/spectrahedron.h"
 #include "random_walks/random_walks.hpp"
+#include "random_walks/uniform_accelerated_billiard_walk.hpp"
 #include "sampling/sample_correlation_matrices.hpp"
 #include "matrix_operations/EigenvaluesProblems.h"
+#include "diagnostics/effective_sample_size.hpp"
+#include "diagnostics/univariate_psrf.hpp"
 
 typedef double                                              NT;
 typedef Eigen::Matrix<NT, Eigen::Dynamic, Eigen::Dynamic>   MT;
@@ -138,12 +141,12 @@ void correlation_matrix_uniform_sampling_MT(const unsigned int n, const unsigned
     std::cout << walkname << " samples uniformly "<< num_points << " correlation matrices of size " << n << " with matrix PointType" << std::endl;
     std::chrono::steady_clock::time_point start, end;
     double time;
-    std::vector<PointMT> randPoints;
+    std::list<MT> randCorMatrices;
     unsigned int walkL = 1;
 
     start = std::chrono::steady_clock::now();
 
-    uniform_correlation_sampling_MT<WalkType, PointMT, RNGType>(n, randPoints, walkL, num_points, 0);
+    uniform_correlation_sampling_MT<WalkType, PointMT, RNGType>(n, randCorMatrices, walkL, num_points, 0);
 
     end = std::chrono::steady_clock::now();
     time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -151,14 +154,89 @@ void correlation_matrix_uniform_sampling_MT(const unsigned int n, const unsigned
 
     int valid_points = 0;
     EigenvaluesProblems<NT, MT, Eigen::Matrix<NT, Eigen::Dynamic, 1>> solver;
-    for(const auto& points : randPoints){
-        if(solver.is_correlation_matrix(points.mat)){
+    for(const auto& matrix : randCorMatrices){
+    	if(solver.is_correlation_matrix(matrix)){
             valid_points++;
-        }
+    	}
     }
+
     std::cout << "Number of valid points = " << valid_points << std::endl;
 
+    std::vector<PointMT> randPoints;
+    for(const auto &mat : randCorMatrices){
+        PointMT p;
+    	p.mat = mat;
+    	randPoints.push_back(p);
+    }
+	
     write_to_file<PointMT>(walkname + "_matrices_MT" + std::to_string(n) + ".txt", randPoints);
+}
+
+template<typename WalkTypePolicy, typename PointType, typename RNGType, typename MT>
+void tune_parameter_L(const int choice, const std::vector<unsigned int>& dimensions, const unsigned int num_points,
+            	      const unsigned int walkL=1, const unsigned int nburns=0){
+    using NT = typename MT::Scalar;
+    for (unsigned int n : dimensions) {
+        std::list<MT> randCorMatrices;
+   	int d = n*(n-1)/2;
+       	double _L;
+    	switch(choice){
+            case 1:  
+                _L = sqrt(NT(d));
+            	std::cout << "The value of L = sqrt(d) = " << _L << std::endl;
+            	break;
+            case 2:
+                _L = 2 * sqrt(NT(d));
+            	std::cout << "The value of L = 2 * sqrt(d) = " << _L << std::endl;
+            	break;
+            case 3:  
+            	_L = 4 * sqrt(NT(d));
+            	std::cout << "The value of L = 4 * sqrt(d) = " << _L << std::endl;
+            	break;
+            case 4:
+             	_L = NT(d) / 4.0;
+             	std::cout << "The value of L = d / 4.0 = " << _L << std::endl;
+            	break;
+            default:
+            	_L = NT(d) / 10.0;
+            	std::cout << "The value of L = d / 10.0 = " << _L << std::endl;
+            	break;
+        }
+    	std::cout<< "Testing L = " << _L << std::endl;
+    	WalkTypePolicy walk(_L);
+        
+	std::chrono::steady_clock::time_point start, end;
+        double time;
+        start = std::chrono::steady_clock::now();
+
+        uniform_correlation_sampling_MT<WalkTypePolicy, PointType, RNGType>(n, randCorMatrices, walkL, num_points, nburns);
+
+        end = std::chrono::steady_clock::now();
+        time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        std::cout << "Elapsed time : " << time << " (ms) for dimension: "<< n << std::endl;
+       	 
+        MT samples(d, num_points);
+        unsigned int jj = 0;
+        for(auto& mat : randCorMatrices){
+            samples.col(jj) = getCoefficientsFromMatrix<NT, MT>(mat);
+            jj++;
+        }       	 
+       	 
+        //calculate psrf
+        VT psrf = univariate_psrf<NT, VT, MT>(samples);
+        double max_psrf = psrf.maxCoeff(); 
+        std::cout << "PSRF = " << max_psrf << std::endl;
+   	 
+    	//calculate ess
+        unsigned int min_ess = 0;
+        VT ess_vector = effective_sample_size<NT, VT, MT>(samples, min_ess);
+        std::cout << "Effective Sample Size = " << min_ess << std::endl;
+        std::cout << "Average Effective Sample Size = " << min_ess/(double)num_points << std::endl;
+        std::cout << std::endl;
+
+        // Clear the matrices for the next iteration
+        randCorMatrices.clear();   	 
+    }
 }
 
 int main(int argc, char const *argv[]){

@@ -22,7 +22,8 @@ enum EllipsoidType
 {
   MAX_ELLIPSOID = 1,
   LOG_BARRIER = 2,
-  VOLUMETRIC_BARRIER = 3
+  VOLUMETRIC_BARRIER = 3,
+  VAIDYA_BARRIER = 4
 };
 
 template <int T>
@@ -56,7 +57,7 @@ initialize_chol(MT const& mat)
     if constexpr (std::is_same<MT, DenseMT>::value)
     {
         return std::make_unique<Eigen::LLT<MT>>();
-    } else if constexpr (std::is_same<MT, SparseMT>::value)  
+    } else if constexpr (std::is_base_of<Eigen::SparseMatrixBase<MT>, MT >::value)  
     {
         auto llt = std::make_unique<Eigen::SimplicialLLT<MT>>();
         llt->analyzePattern(mat);
@@ -77,7 +78,7 @@ initialize_chol(MT const& A_trans, MT const& A)
     if constexpr (std::is_same<MT, DenseMT>::value)
     {
         return std::make_unique<Eigen::LLT<MT>>();
-    } else if constexpr (std::is_same<MT, SparseMT>::value)  
+    } else if constexpr (std::is_base_of<Eigen::SparseMatrixBase<MT>, MT >::value)  
     {
         MT mat = A_trans * A;
         return initialize_chol<NT>(mat);
@@ -98,7 +99,7 @@ inline static VT solve_vec(std::unique_ptr<Eigen_lltMT> const& llt,
     {
         llt->compute(H);
         return llt->solve(b);
-    } else if constexpr (std::is_same<MT, SparseMT>::value)  
+    } else if constexpr (std::is_base_of<Eigen::SparseMatrixBase<MT>, MT >::value)  
     {
         llt->factorize(H);
         return llt->solve(b);
@@ -121,7 +122,7 @@ solve_mat(std::unique_ptr<Eigen_lltMT> const& llt,
         llt->compute(H);
         logdetE = llt->matrixL().toDenseMatrix().diagonal().array().log().sum();
         return llt->solve(mat);
-    } else if constexpr (std::is_same<MT, SparseMT>::value)  
+    } else if constexpr (std::is_base_of<Eigen::SparseMatrixBase<MT>, MT >::value)  
     {
         llt->factorize(H);
         logdetE = llt->matrixL().nestedExpression().diagonal().array().log().sum();
@@ -142,7 +143,7 @@ inline static void update_Atrans_Diag_A(MT &H, MT const& A_trans,
     if constexpr (std::is_same<MT, DenseMT>::value)
     {
         H.noalias() = A_trans * D * A;
-    } else if constexpr (std::is_same<MT, SparseMT>::value)  
+    } else if constexpr (std::is_base_of<Eigen::SparseMatrixBase<MT>, MT >::value)  
     {
         H = A_trans * D * A;
     } else 
@@ -160,7 +161,7 @@ inline static void update_Diag_A(MT &H, diag_MT const& D, MT const& A)
     if constexpr (std::is_same<MT, DenseMT>::value)
     {
         H.noalias() = D * A;
-    } else if constexpr (std::is_same<MT, SparseMT>::value)  
+    } else if constexpr (std::is_base_of<Eigen::SparseMatrixBase<MT>, MT >::value)  
     {
         H = D * A;
     } else 
@@ -178,7 +179,7 @@ inline static void update_A_Diag(MT &H, MT const& A, diag_MT const& D)
     if constexpr (std::is_same<MT, DenseMT>::value)
     {
         H.noalias() = A * D;
-    } else if constexpr (std::is_same<MT, SparseMT>::value)  
+    } else if constexpr (std::is_base_of<Eigen::SparseMatrixBase<MT>, MT >::value)  
     {
         H = A * D;
     } else 
@@ -197,7 +198,7 @@ get_mat_prod_op(MT const& E)
     if constexpr (std::is_same<MT, DenseMT>::value)
     {
         return std::make_unique<Spectra::DenseSymMatProd<NT>>(E);
-    } else if constexpr (std::is_same<MT, SparseMT>::value)  
+    } else if constexpr (std::is_base_of<Eigen::SparseMatrixBase<MT>, MT >::value)  
     {
         return std::make_unique<Spectra::SparseSymMatProd<NT>>(E);
     } else 
@@ -248,7 +249,7 @@ init_Bmat(MT &B, int const n, MT const& A_trans, MT const& A)
     if constexpr (std::is_same<MT, DenseMT>::value)
     {
         B.resize(n+1, n+1);
-    } else if constexpr (std::is_same<MT, SparseMT>::value)  
+    } else if constexpr (std::is_base_of<Eigen::SparseMatrixBase<MT>, MT >::value)  
     {
         // Initialize the structure of matrix B
         typedef Eigen::Triplet<NT> triplet;
@@ -298,7 +299,7 @@ update_Bmat(MT &B, VT const& AtDe, VT const& d,
         B.block(n, 0, 1, n).noalias() = AtDe.transpose();
         B(n, n) = d.sum();
         B.noalias() += 1e-14 * MT::Identity(n + 1, n + 1);
-    } else if constexpr (std::is_same<MT, SparseMT>::value)  
+    } else if constexpr (std::is_base_of<Eigen::SparseMatrixBase<MT>, MT >::value)  
     {
         MT AtD_A = AtD * A;
         int k = 0;
@@ -345,7 +346,8 @@ std::tuple<NT, NT> init_step()
   if constexpr (BarrierType == EllipsoidType::LOG_BARRIER)
   {
     return {NT(1), NT(0.99)};
-  } else if constexpr (BarrierType == EllipsoidType::VOLUMETRIC_BARRIER)
+  } else if constexpr (BarrierType == EllipsoidType::VOLUMETRIC_BARRIER ||
+                       BarrierType == EllipsoidType::VAIDYA_BARRIER)
   {
     return {NT(0.5), NT(0.4)};
   } else {
@@ -362,21 +364,44 @@ void get_barrier_hessian_grad(MT const& A, MT const& A_trans, VT const& b,
   b_Ax.noalias() = b - Ax;
   VT s = b_Ax.cwiseInverse();
   VT s_sq = s.cwiseProduct(s);
+  VT sigma;
   // Hessian of the log-barrier function
   update_Atrans_Diag_A<NT>(H, A_trans, A, s_sq.asDiagonal());
+
+  if constexpr (BarrierType == EllipsoidType::VOLUMETRIC_BARRIER ||
+                BarrierType == EllipsoidType::VAIDYA_BARRIER)
+  {
+    // Computing sigma(x)_i = (a_i^T H^{-1} a_i) / (b_i - a_i^Tx)^2
+    MT_dense HA = solve_mat(llt, H, A_trans, obj_val);
+    MT_dense aiHai = HA.transpose().cwiseProduct(A);
+    sigma = (aiHai.rowwise().sum()).cwiseProduct(s_sq);
+  }
+
   if constexpr (BarrierType == EllipsoidType::LOG_BARRIER)
   {
     grad.noalias() = A_trans * s;
   } else if constexpr (BarrierType == EllipsoidType::VOLUMETRIC_BARRIER)
   {
-    // Computing sigma(x)_i = (a_i^T H^{-1} a_i) / (b_i - a_i^Tx)^2
-    MT_dense HA = solve_mat(llt, H, A_trans, obj_val);
-    MT_dense aiHai = HA.transpose().cwiseProduct(A);
-    VT sigma = (aiHai.rowwise().sum()).cwiseProduct(s_sq);
     // Gradient of the volumetric barrier function
     grad.noalias() = A_trans * (s.cwiseProduct(sigma));
     // Hessian of the volumetric barrier function
     update_Atrans_Diag_A<NT>(H, A_trans, A, s_sq.cwiseProduct(sigma).asDiagonal());
+  } else if constexpr (BarrierType == EllipsoidType::VAIDYA_BARRIER)
+  {
+    const int m = b.size(), d = x.size();
+    NT const d_m = NT(d) / NT(m);
+    // Weighted gradient of the log barrier function
+    grad.noalias() = A_trans * s;
+    grad *= d_m;
+    // Add the gradient of the volumetric function
+    grad.noalias() += A_trans * (s.cwiseProduct(sigma));
+    // Weighted Hessian of the log barrier function
+    H *= d_m;
+    // Add the Hessian of the volumetric function
+    MT Hvol(d, d);
+    update_Atrans_Diag_A<NT>(Hvol, A_trans, A, s_sq.cwiseProduct(sigma).asDiagonal());
+    H += Hvol;
+    obj_val -= s.array().log().sum();
   } else {
     static_assert(AssertBarrierFalseType<BarrierType>::value,
             "Barrier type is not supported.");
@@ -393,6 +418,9 @@ void get_step_next_iteration(NT const obj_val_prev, NT const obj_val,
   } else if constexpr (BarrierType == EllipsoidType::VOLUMETRIC_BARRIER)
   {
     step_iter *= (obj_val_prev <= obj_val - tol_obj) ? NT(0.9) : NT(0.999);
+  } else if constexpr (BarrierType == EllipsoidType::VAIDYA_BARRIER)
+  {
+    step_iter *= NT(0.999);
   } else {
     static_assert(AssertBarrierFalseType<BarrierType>::value,
             "Barrier type is not supported.");

@@ -28,6 +28,8 @@ option(DISABLE_NLP_ORACLES "Disable non-linear oracles (used in collocation)" ON
 option(BUILTIN_EIGEN "Use eigen from ../external" OFF)
 option(BUILTIN_AUTODIFF "Use autodiff from ../external" ON)
 option(USE_MKL "Use MKL library to build eigen" OFF)
+option(BUILTIN_AUTODIFF "Use autodiff from ../external" ON)
+option(USE_MKL "Use MKL library to build eigen" OFF)
 
 if(DISABLE_NLP_ORACLES)
   add_definitions(-DDISABLE_NLP_ORACLES)
@@ -110,6 +112,9 @@ endif(COMMAND cmake_policy)
 include("../external/cmake-files/Autodiff.cmake")
 GetAutodiff()
 
+include("../external/cmake-files/Autodiff.cmake")
+GetAutodiff()
+
 include("../external/cmake-files/Eigen.cmake")
 GetEigen()
 
@@ -142,12 +147,29 @@ endif(CODE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 
 if (BUILTIN_AUTODIFF)
     include_directories (BEFORE ../../external/_deps/Autodiff)
+if (BUILTIN_AUTODIFF)
+    include_directories (BEFORE ../../external/_deps/Autodiff)
 else ()
+    include_directories(BEFORE /usr/local/include)
+endif(BUILTIN_AUTODIFF)
     include_directories(BEFORE /usr/local/include)
 endif(BUILTIN_AUTODIFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS "ON")
+set(CMAKE_EXPORT_COMPILE_COMMANDS "ON")
 
+if (USE_MKL)
+  find_library(BLAS NAMES libblas.so libblas.dylib PATHS /usr/local/Cellar/lapack/3.9.1_1/lib /usr/lib/x86_64-linux-gnu /usr/lib/i386-linux-gnu /usr/local/Cellar/openblas/0.3.15_1/lib /usr/lib)
+  find_library(GFORTRAN NAME libgfortran.dylib PATHS /usr/local/Cellar/gcc/10.2.0_4/lib/gcc/10)
+  find_library(LAPACK NAME liblapack.dylib PATHS /usr/lib)
+  find_library(OPENMP NAME libiomp5.dylib PATHS /opt/intel/oneapi/compiler/2021.1.1/mac/compiler/lib)
+  include_directories (BEFORE ${MKLROOT}/include)
+  set(PROJECT_LIBS ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} ${GFORTRAN_LIBRARIES})
+  set(MKL_LINK "-L${MKLROOT}/lib -Wl,-rpath,${MKLROOT}/lib -lmkl_intel_ilp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl")
+  add_definitions(-DEIGEN_USE_MKL_ALL)
+else()
+  set(MKL_LINK "")
+endif(USE_MKL)
 if (USE_MKL)
   find_library(BLAS NAMES libblas.so libblas.dylib PATHS /usr/local/Cellar/lapack/3.9.1_1/lib /usr/lib/x86_64-linux-gnu /usr/lib/i386-linux-gnu /usr/local/Cellar/openblas/0.3.15_1/lib /usr/lib)
   find_library(GFORTRAN NAME libgfortran.dylib PATHS /usr/local/Cellar/gcc/10.2.0_4/lib/gcc/10)
@@ -163,7 +185,15 @@ endif(USE_MKL)
 
 include_directories (BEFORE ../external)
 include_directories (BEFORE ../include)
+include_directories (BEFORE ../external)
+include_directories (BEFORE ../include)
 
+#for Eigen
+if (${CMAKE_VERSION} VERSION_LESS "3.12.0")
+  add_compile_options(-D "EIGEN_NO_DEBUG")
+else ()
+  add_compile_definitions("EIGEN_NO_DEBUG")
+endif ()
 #for Eigen
 if (${CMAKE_VERSION} VERSION_LESS "3.12.0")
   add_compile_options(-D "EIGEN_NO_DEBUG")
@@ -210,6 +240,7 @@ add_test(NAME test_grdhr COMMAND sampling_test -tc=grdhr)
 add_test(NAME test_gbaw COMMAND sampling_test -tc=gbaw)
 add_test(NAME test_ghmc COMMAND sampling_test -tc=ghmc)
 add_test(NAME test_gabw COMMAND sampling_test -tc=gabw)
+add_test(NAME test_sparse COMMAND sampling_test -tc=sparse)
 
 add_executable (mmcs_test mmcs_test.cpp $<TARGET_OBJECTS:test_main>)
 add_test(NAME test_mmcs COMMAND mmcs_test -tc=mmcs)
@@ -263,6 +294,7 @@ add_test(NAME volume_cg_hpolytope_birkhoff COMMAND volume_cg_hpolytope -tc=birk)
 add_test(NAME volume_cg_hpolytope_prod_simplex COMMAND volume_cg_hpolytope -tc=prod_simplex)
 add_test(NAME volume_cg_hpolytope_simplex COMMAND volume_cg_hpolytope -tc=simplex)
 add_test(NAME volume_cg_hpolytope_skinny_cube COMMAND volume_cg_hpolytope -tc=skinny_cube)
+add_test(NAME volume_cg_hpolytope_sparse_simplex COMMAND volume_cg_hpolytope -tc=sparse_simplex)
 
 add_executable (volume_cg_vpolytope volume_cg_vpolytope.cpp $<TARGET_OBJECTS:test_main>)
 add_test(NAME volume_cg_vpolytope_cube COMMAND volume_cg_vpolytope -tc=cube)
@@ -303,6 +335,10 @@ add_test(NAME round_max_ellipsoid_sparse
           COMMAND rounding_test -tc=round_max_ellipsoid_sparse)
 add_test(NAME round_volumetric_barrier_test
           COMMAND rounding_test -tc=round_volumetric_barrier_test)
+add_test(NAME round_vaidya_barrier_test
+          COMMAND rounding_test -tc=round_vaidya_barrier_test)
+add_test(NAME round_sparse_test
+          COMMAND rounding_test -tc=round_sparse)
 
 
 
@@ -368,6 +404,8 @@ add_test(NAME test_max_ball_sparse
           COMMAND test_internal_points -tc=test_max_ball_sparse)
 add_test(NAME test_volumetric_center
           COMMAND test_internal_points -tc=test_volumetric_center)
+add_test(NAME test_vaidya_center
+          COMMAND test_internal_points -tc=test_vaidya_center)
 
           
 
