@@ -65,6 +65,12 @@ Polytope get_orderpoly(Poset const &poset) {
     } else if constexpr (std::is_same<Polytope, HPolytope<Point> >::value ){
         Polytope HP(OP.dimension(), OP.get_dense_mat(), OP.get_vec());
         return HP;
+    } else if constexpr (std::is_same<Polytope, HPolytope<Point, Eigen::SparseMatrix<double> >>::value ){
+        Polytope HP(OP.dimension(), OP.get_dense_mat(), OP.get_vec());
+        return HP;
+    } else if constexpr (std::is_same<Polytope, HPolytope<Point, Eigen::SparseMatrix<double, Eigen::RowMajor> >>::value ){
+        Polytope HP(OP.dimension(), OP.get_dense_mat(), OP.get_vec());
+        return HP;
     } else {
         throw "Unable to generate an Order Polytope of requested type";
     }

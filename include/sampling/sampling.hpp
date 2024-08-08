@@ -27,10 +27,6 @@ template <typename WalkTypePolicy,
           typename Polytope,
           typename RandomNumberGenerator,
           typename Point
-          typename PointList,
-          typename Polytope,
-          typename RandomNumberGenerator,
-          typename Point
         >
 void uniform_sampling(PointList &randPoints,
                    Polytope &P,
@@ -244,14 +240,6 @@ void logconcave_sampling(PointList &randPoints,
                          unsigned int const& nburns,
                          NegativeGradientFunctor &F,
                          NegativeLogprobFunctor &f)
-                         Polytope &P,
-                         RandomNumberGenerator &rng,
-                         const unsigned int &walk_len,
-                         const unsigned int &rnum,
-                         const Point &starting_point,
-                         unsigned int const& nburns,
-                         NegativeGradientFunctor &F,
-                         NegativeLogprobFunctor &f)
 {
     typedef typename WalkTypePolicy::template Walk
             <
@@ -289,18 +277,12 @@ void logconcave_sampling(PointList &randPoints,
         RandomPointGenerator::apply(nburns, walk_len, randPoints,
                                 push_back_policy, rng, logconcave_walk);
     }
-    
-    if (nburns > 0) {
-        RandomPointGenerator::apply(nburns, walk_len, randPoints,
-                                push_back_policy, rng, logconcave_walk);
-    }
     logconcave_walk.disable_adaptive();
     randPoints.clear();
 
     RandomPointGenerator::apply(rnum, walk_len, randPoints,
                                 push_back_policy, rng, logconcave_walk);
 }
-#include "preprocess/crhmc/analytic_center.h"
 #include "preprocess/crhmc/crhmc_input.h"
 #include "preprocess/crhmc/crhmc_problem.h"
 template
@@ -336,10 +318,6 @@ void crhmc_sampling(PointList &randPoints,
                   NegativeGradientFunctor,
                   HessianFunctor
           > Input;
-
-  std::chrono::time_point<std::chrono::high_resolution_clock> start, stop;
-  start = std::chrono::high_resolution_clock::now();
-
   Input input = convert2crhmc_input<Input, Polytope, NegativeLogprobFunctor, NegativeGradientFunctor, HessianFunctor>(P, f, F, h);
   typedef crhmc_problem<Point, Input> CrhmcProblem;
   CrhmcProblem problem = CrhmcProblem(input);
@@ -372,31 +350,12 @@ void crhmc_sampling(PointList &randPoints,
 
   typedef CrhmcRandomPointGenerator<walk> RandomPointGenerator;
 
-
-    stop = std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double> total_time = stop - start;
-    std::cout << "Preprocessing Done in " << total_time.count() << '\n';
-
-    start = std::chrono::high_resolution_clock::now();
-
   RandomPointGenerator::apply(problem, p, nburns, walk_len, randPoints,
                               push_back_policy, rng, F, f, params, crhmc_walk);
-
-    stop = std::chrono::high_resolution_clock::now();
-
-    total_time = stop - start;
-    std::cout << "10 burn points sampled in " << total_time.count() << '\n';
-
-    start = std::chrono::high_resolution_clock::now();
   //crhmc_walk.disable_adaptive();
   randPoints.clear();
   RandomPointGenerator::apply(problem, p, rnum, walk_len, randPoints,
                               push_back_policy, rng, F, f, params, crhmc_walk, simdLen, raw_output);
-    stop = std::chrono::high_resolution_clock::now();
-
-    total_time = stop - start;
-    std::cout << "rest of points sampled in " << total_time.count() << '\n';
 }
 #include "ode_solvers/ode_solvers.hpp"
 template <

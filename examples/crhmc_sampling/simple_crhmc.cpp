@@ -83,6 +83,8 @@ void sample_aBW (Polytope &P, RandomNumberGenerator &rng, std::list<Point> &rand
 
         nr_it = 0;
 
+        std::cout << "hi" << std::endl;
+
         RandomPointGenerator::apply(P, p, N, 1, randPoints,
                                     push_back_policy, rng);
 }
@@ -171,7 +173,10 @@ void sample_hpoly(int n_samples = 80000,
     using Func = ZeroScalarFunctor<Point>;
     using Grad = ZeroFunctor<Point>;
     using Hess = ZeroFunctor<Point>;
-    using PolytopeType = HPolytope<Point, Eigen::SparseMatrix<NT> >;
+    using MT_D1 = Eigen::SparseMatrix<NT, Eigen::RowMajor>;
+    using MT_D2 = Eigen::SparseMatrix<NT, Eigen::ColMajor>;
+    using PolytopeType = HPolytope<Point, MT_D2 >;
+    using PolytopeType1 = HPolytope<Point, MT_D1 >;
     using VT = Eigen::Matrix<NT, Eigen::Dynamic, 1>;
     using MT = PolytopeType::DenseMT;
     typedef boost::mt19937 PolyRNGType;
@@ -227,24 +232,30 @@ void sample_hpoly(int n_samples = 80000,
     Grad * g = new Grad;
     std::list<Point> PointList;
 
+    MT_D1 aa = HP.get_mat();
+
+    PolytopeType1 HHP = PolytopeType1(dim, aa, HP.get_vec());
+
     
     std::chrono::time_point<std::chrono::high_resolution_clock> start, stop;
     start = std::chrono::high_resolution_clock::now();
 
     if(crhmc_walk == 1) {
         std::cout << "Using CRHMC walk" << std::endl;
-        execute_crhmc< PolytopeType, RNG, std::list<Point>, Grad, Func, Hess, CRHMCWalk, simdLen>(
-        HP, rng, PointList, 1, n_samples, n_burns, g, f);
+        //execute_crhmc< PolytopeType, RNG, std::list<Point>, Grad, Func, Hess, CRHMCWalk, simdLen>(
+        //HP, rng, PointList, 1, n_samples, n_burns, g, f);
     } else if(crhmc_walk == 0) {
         std::cout << "Using aBW walk" << std::endl;
-        sample_aBW(HP, rng, PointList, n_samples);
+        sample_aBW(HHP, rng, PointList, n_samples);
     } else if(crhmc_walk == 2) {
         std::cout << "Using GaBW walk" << std::endl;
-        sample_gaBW<MT, VT, NT>(HP, rng, PointList, n_samples);
+        //sample_gaBW<MT, VT, NT>(HP, rng, PointList, n_samples);
     } else if(crhmc_walk == 4) {
-        std::pair<Point, NT> InnerBall = HP.ComputeInnerBall();
-        std::tuple<MT, VT, NT> res = inscribed_ellipsoid_rounding<MT, VT, NT>(HP, InnerBall.first);
-        sample_aBW(HP, rng, PointList, n_samples);
+        //std::pair<Point, NT> InnerBall = HP.ComputeInnerBall();
+        //std::tuple<MT, VT, NT> res = inscribed_ellipsoid_rounding<MT, VT, NT>(HP, InnerBall.first);
+        MT idk = HHP.get_mat();
+        HPolytope<Point> DHP(dim, idk, HHP.get_vec());
+        sample_aBW(DHP, rng, PointList, n_samples);
     }
 
     stop = std::chrono::high_resolution_clock::now();
@@ -316,16 +327,16 @@ int main(int argc, char *argv[]) {
                 double ess[5][5];
                 double nr_s[5][5];
                 double nr_iter[5][5];
-                for(int a = 0; a <= 3; ++a)
-                    for(int b = 0; b <= 4; b+=2) {
+                for(int a = 0; a <= 4; ++a)
+                    for(int b = 0; b <= 4; b+=4) {
                         if(atoi(argv[1]) == 1)
-                            run_main<1>(10 * n, 10, n, m, a, b);
+                            run_main<1>(100 * n, 10, n, m, a, b);
                         else if(atoi(argv[1]) == 4)
-                            run_main<4>(10 * n, 10, n, m, a, b);
+                            run_main<4>(100 * n, 10, n, m, a, b);
                         else if(atoi(argv[1]) == 8)
-                            run_main<8>(10 * n, 10, n, m, a, b);
+                            run_main<8>(100 * n, 10, n, m, a, b);
                         else if(atoi(argv[1]) == 16)
-                            run_main<16>(10 * n, 10, n, m, a, b);
+                            run_main<16>(100 * n, 10, n, m, a, b);
                         dur[a][b] = duration;
                         psrf[a][b] = maxPsrf;
                         ess[a][b] = minEss;
@@ -346,7 +357,7 @@ int main(int argc, char *argv[]) {
                 int x;
                 samples_stream << "dim = " << n << ",m = " << n*10  << ",random skinny,order,birkoff,simplex,skinny cube\n";
                 x = 0;
-                samples_stream << "Volesti aBW,runtime," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
+                samples_stream << "Volesti aBW sparse,runtime," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
                 samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
                 samples_stream << "\"\",psrf," << psrf[0][x] << ',' << psrf[1][x] << ',' << psrf[2][x] << ',' << psrf[3][x] << ',' << psrf[4][x] << '\n';
                 samples_stream << "\"\",ess," << ess[0][x] << ',' << ess[1][x] << ',' << ess[2][x] << ',' << ess[3][x] << ',' << ess[4][x] << '\n';
@@ -366,8 +377,8 @@ int main(int argc, char *argv[]) {
                 samples_stream << "\"\",ess / runtime," << ess[0][x] / dur[0][x] << ',' << ess[1][x] / dur[1][x] << ',' << ess[2][x] / dur[2][x] << ',' << ess[3][x] / dur[3][x] << ',' << ess[4][x] / dur[4][x] << '\n';
                 samples_stream << "\"\",ess / samples," << ess[0][x] / nr_s[0][x] << ',' << ess[1][x] / nr_s[1][x] << ',' << ess[2][x] / nr_s[2][x] << ',' << ess[3][x] / nr_s[3][x] << ',' << ess[4][x] / nr_s[4][x] << '\n';
                 
-                samples_stream << "\"\"\n";*/
-
+                samples_stream << "\"\"\n";
+                
                 x = 2;
                 samples_stream << "Volesti GaBW,runtime," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
                 samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
@@ -394,7 +405,7 @@ int main(int argc, char *argv[]) {
                 
 
                 x = 4;
-                samples_stream << "Volesti aBW w rounding,runtime," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
+                samples_stream << "Volesti aBW dense," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
                 samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
                 samples_stream << "\"\",psrf," << psrf[0][x] << ',' << psrf[1][x] << ',' << psrf[2][x] << ',' << psrf[3][x] << ',' << psrf[4][x] << '\n';
                 samples_stream << "\"\",ess," << ess[0][x] << ',' << ess[1][x] << ',' << ess[2][x] << ',' << ess[3][x] << ',' << ess[4][x] << '\n';

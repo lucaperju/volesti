@@ -279,7 +279,6 @@ struct AcceleratedBilliardWalk
         {
             unsigned int n = P.dimension();
             const NT dl = 0.995;
-            was_reset = false;
             _lambdas.setZero(P.num_of_hyperplanes());
             _Av.setZero(P.num_of_hyperplanes());
             _p = p;

@@ -61,7 +61,7 @@ struct RandomPointGenerator
         
         using VT = typename Polytope::VT;
         using MT = typename Polytope::MT;
-        bool ok = true; // true if I want to sample until ess = rnum
+        bool ok = false; // true if I want to sample until ess = rnum
 
         std::chrono::time_point<std::chrono::high_resolution_clock> start, stop;
         start = std::chrono::high_resolution_clock::now();
