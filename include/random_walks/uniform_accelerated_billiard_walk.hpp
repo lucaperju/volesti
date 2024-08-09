@@ -16,6 +16,9 @@
 #include <set>
 #include <vector>
 
+
+const double eps = 0.000000001;
+
 template<typename NT>
 class Heap {
 public:
@@ -24,29 +27,31 @@ public:
     std::vector<std::pair<NT, int>> vec;
 
 private:
-    void siftDown(int index) {
+    int siftDown(int index) {
         while((index << 1) + 1 < heap_size) {
             int child = (index << 1) + 1;
-            if(child + 1 < heap_size && heap[child + 1].first < heap[child].first) {
+            if(child + 1 < heap_size && heap[child + 1].first < heap[child].first - eps) {
                 child += 1;
             }
-            if(heap[child].first < heap[index].first)
+            if(heap[child].first < heap[index].first - eps)
             {
                 std::swap(heap[child], heap[index]);
                 std::swap(vec[heap[child].second].second, vec[heap[index].second].second);
                 index = child;
             } else {
-                return;
+                return index;
             }
         }
+        return index;
     }
 
-    void siftUp(int index) {
-        while(index > 0 && heap[(index - 1) >> 1].first > heap[index].first) {
+    int siftUp(int index) {
+        while(index > 0 && heap[(index - 1) >> 1].first - eps > heap[index].first) {
             std::swap(heap[(index - 1) >> 1], heap[index]);
             std::swap(vec[heap[(index - 1) >> 1].second].second, vec[heap[index].second].second);
             index = (index - 1) >> 1;
         }
+        return index;
     }
 
 public:
@@ -79,7 +84,7 @@ public:
         return heap[0];
     }
 
-    void remove (const int index) { // takes the index from the heap
+    void remove (int index) { // takes the index from the heap
         if(index == -1) {
             return;
         }
@@ -87,7 +92,8 @@ public:
         std::swap(vec[heap[heap_size - 1].second].second, vec[heap[index].second].second);
         vec[heap[heap_size - 1].second].second = -1;
         heap_size -= 1;
-        siftDown(index);
+        index = siftDown(index);
+        siftUp(index);
     }
 
     void insert (const std::pair<NT, int> val) {
@@ -95,7 +101,8 @@ public:
         siftUp(heap_size - 1);
     }
 
-    void change_val(const int& index, const NT& new_val, const NT& moved_dist) { // takes the index from the vec
+    void change_val(const int index, const NT new_val, const NT moved_dist) { // takes the index from the vec
+        std::cout << "changing at index " << index << " new val " << new_val << " moved dist " << moved_dist << std::endl;
         if(new_val < moved_dist) { // should not be inserted into the heap
             remove(vec[index].second);
         } else { // should be inserted into the heap
@@ -232,6 +239,9 @@ struct AcceleratedBilliardWalk
 
                 _lambda_prev = dl * pbpair.first;
                 if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>::value) {
+
+                    std::cout << "new!--------------------------------------------------------------------" << std::endl;
+                    std::cout << _lambda_prev << std::endl;
                     _update_parameters.moved_dist = _lambda_prev;
                     typename Point::Coeff b = P.get_vec();
                     NT* b_data = b.data();
@@ -272,8 +282,22 @@ struct AcceleratedBilliardWalk
                     T -= _lambda_prev;
                     P.compute_reflection(_v, _p, _update_parameters);
                     it++;
+                    if(!P.is_in(_p + _update_parameters.moved_dist * _v))
+                    {
+                        std::cout << "oh no" << std::endl;
+                        std::cout << _p.getCoefficients() << std::endl;
+                        std::cout << _v.getCoefficients() << std::endl;
+                        exit(0);
+                    }
                 }
                 _p += _update_parameters.moved_dist * _v;
+                if(!P.is_in(_p))
+                {
+                    std::cout << "oh no" << std::endl;
+                    std::cout << _p.getCoefficients() << std::endl;
+                    std::cout << _v.getCoefficients() << std::endl;
+                    exit(0);
+                }
                 _update_parameters.moved_dist = 0.0;
                 if (it == _rho) {
                     _p = p0;

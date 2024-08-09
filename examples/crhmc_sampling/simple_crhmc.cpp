@@ -175,12 +175,13 @@ void sample_hpoly(int n_samples = 80000,
     using Hess = ZeroFunctor<Point>;
     using MT_D1 = Eigen::SparseMatrix<NT, Eigen::RowMajor>;
     using MT_D2 = Eigen::SparseMatrix<NT, Eigen::ColMajor>;
+    using PolytopeTypeD = HPolytope<Point>;
     using PolytopeType = HPolytope<Point, MT_D2 >;
     using PolytopeType1 = HPolytope<Point, MT_D1 >;
     using VT = Eigen::Matrix<NT, Eigen::Dynamic, 1>;
     using MT = PolytopeType::DenseMT;
     typedef boost::mt19937 PolyRNGType;
-    using RNG = BoostRandomNumberGenerator<boost::mt19937, NT>;
+    using RNG = BoostRandomNumberGenerator<boost::mt19937, NT, 3>;
 
     /*
     0 = random skinny
@@ -191,31 +192,31 @@ void sample_hpoly(int n_samples = 80000,
     */
 
     RNG rng(dim);
-    PolytopeType HP;
+    PolytopeTypeD DHP;
     if(poly_type == 0) {
-        HP = skinny_random_hpoly<PolytopeType, NT, PolyRNGType>(dim, m, true, NT(20000), 101);
-        std::cout << "Sampling from Random Skinny Polytope of dimension " << dim << " and hash  " << get_hash<PolytopeType, MT, VT>(HP) << std::endl;
+        DHP = skinny_random_hpoly<PolytopeTypeD, NT, PolyRNGType>(dim, m, true, NT(20000), 101);
+        std::cout << "Sampling from Random Skinny Polytope of dimension " << dim << " and hash  " << get_hash<PolytopeTypeD, MT, VT>(DHP) << std::endl;
     } else if(poly_type == 1) {
-        HP = random_orderpoly<PolytopeType, NT>(dim, m, 101);
-        std::cout << "Sampling from Order Polytope of dimension " << dim << " and hash  "  << get_hash<PolytopeType, MT, VT>(HP) << std::endl;
+        DHP = random_orderpoly<PolytopeTypeD, NT>(dim, m, 101);
+        std::cout << "Sampling from Order Polytope of dimension " << dim << " and hash  "  << get_hash<PolytopeTypeD, MT, VT>(DHP) << std::endl;
     } else if(poly_type == 2) {
         unsigned int aux = ceil(sqrt(dim));
         aux += 1;
-        HP = generate_birkhoff<PolytopeType>(aux);
+        DHP = generate_birkhoff<PolytopeTypeD>(aux);
         dim = aux * (aux - 2) + 1;
-        std::cout << "Sampling from Birkhoff Polytope of dimension " << aux * (aux - 2) + 1 << " and hash  "  << get_hash<PolytopeType, MT, VT>(HP) << std::endl;
+        std::cout << "Sampling from Birkhoff Polytope of dimension " << aux * (aux - 2) + 1 << " and hash  "  << get_hash<PolytopeTypeD, MT, VT>(DHP) << std::endl;
     } else if(poly_type == 3) {
-        HP = generate_simplex<PolytopeType>(dim, false);
-        std::cout << "Sampling from Simplex Polytope of dimension " << dim << " and hash  "  << get_hash<PolytopeType, MT, VT>(HP) << std::endl;
+        DHP = generate_simplex<PolytopeTypeD>(dim, false);
+        std::cout << "Sampling from Simplex Polytope of dimension " << dim << " and hash  "  << get_hash<PolytopeTypeD, MT, VT>(DHP) << std::endl;
     } else if(poly_type == 4) {
-        HP = generate_skinny_cube<PolytopeType>(dim);
-        std::cout << "Sampling from Skinny Cube of dimension " << dim << " and hash  "  << get_hash<PolytopeType, MT, VT>(HP) << std::endl;
+        DHP = generate_skinny_cube<PolytopeTypeD>(dim);
+        std::cout << "Sampling from Skinny Cube of dimension " << dim << " and hash  "  << get_hash<PolytopeTypeD, MT, VT>(DHP) << std::endl;
     }
 
     std::ofstream poly_out;
     poly_out.open("cpp_poly.txt");
-    MT A = HP.get_mat();
-    VT b = HP.get_vec();
+    MT A = DHP.get_mat();
+    VT b = DHP.get_vec();
     for (unsigned int i = 0; i < A.rows(); i++) {
         for (unsigned int j = 0; j < dim; j++) {
             poly_out << A(i, j) << " ";
@@ -232,9 +233,13 @@ void sample_hpoly(int n_samples = 80000,
     Grad * g = new Grad;
     std::list<Point> PointList;
 
-    MT_D1 aa = HP.get_mat();
+    MT_D1 aa = DHP.get_mat().sparseView();
 
-    PolytopeType1 HHP = PolytopeType1(dim, aa, HP.get_vec());
+    auto aux = DHP.ComputeInnerBall();
+
+    PolytopeType1 HHP = PolytopeType1(dim, aa, DHP.get_vec());
+
+    HHP.set_InnerBall(aux);
 
     
     std::chrono::time_point<std::chrono::high_resolution_clock> start, stop;
@@ -245,16 +250,18 @@ void sample_hpoly(int n_samples = 80000,
         //execute_crhmc< PolytopeType, RNG, std::list<Point>, Grad, Func, Hess, CRHMCWalk, simdLen>(
         //HP, rng, PointList, 1, n_samples, n_burns, g, f);
     } else if(crhmc_walk == 0) {
-        std::cout << "Using aBW walk" << std::endl;
+        std::cout << "Using sparse aBW walk" << std::endl;
         sample_aBW(HHP, rng, PointList, n_samples);
     } else if(crhmc_walk == 2) {
         std::cout << "Using GaBW walk" << std::endl;
         //sample_gaBW<MT, VT, NT>(HP, rng, PointList, n_samples);
     } else if(crhmc_walk == 4) {
+        std::cout << "Using dense aBW walk" << std::endl;
         //std::pair<Point, NT> InnerBall = HP.ComputeInnerBall();
         //std::tuple<MT, VT, NT> res = inscribed_ellipsoid_rounding<MT, VT, NT>(HP, InnerBall.first);
-        MT idk = HHP.get_mat();
-        HPolytope<Point> DHP(dim, idk, HHP.get_vec());
+        //MT idk = DHP.get_mat();
+        //HPolytope<Point> DHP(dim, idk, HHP.get_vec());
+
         sample_aBW(DHP, rng, PointList, n_samples);
     }
 
@@ -318,17 +325,17 @@ int main(int argc, char *argv[]) {
             std::ofstream samples_stream;
             samples_stream.open("output" + std::to_string(atoi(argv[1])) + ".txt");
             
-            for(int n = 50; n <= 200; n += 50)
+            for(int n = 5; n <= 50; n += 50)
             {
                 std::cout << "\n\n" << n << '\n';
-                int m = n * 10;
+                int m = n * 4;
                 double dur[5][5];
                 double psrf[5][5];
                 double ess[5][5];
                 double nr_s[5][5];
                 double nr_iter[5][5];
-                for(int a = 0; a <= 4; ++a)
-                    for(int b = 0; b <= 4; b+=4) {
+                for(int a = 1; a <= 1; ++a)
+                    for(int b = 0; b <= 0; b+=4) {
                         if(atoi(argv[1]) == 1)
                             run_main<1>(100 * n, 10, n, m, a, b);
                         else if(atoi(argv[1]) == 4)
@@ -405,7 +412,7 @@ int main(int argc, char *argv[]) {
                 
 
                 x = 4;
-                samples_stream << "Volesti aBW dense," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
+                samples_stream << "Volesti aBW dense,," << dur[0][x] << ',' << dur[1][x] << ',' << dur[2][x] << ',' << dur[3][x] << ',' << dur[4][x] << '\n';
                 samples_stream << "\"\",samples," << nr_s[0][x] << ',' << nr_s[1][x] << ',' << nr_s[2][x] << ',' << nr_s[3][x] << ',' << nr_s[4][x] << '\n';
                 samples_stream << "\"\",psrf," << psrf[0][x] << ',' << psrf[1][x] << ',' << psrf[2][x] << ',' << psrf[3][x] << ',' << psrf[4][x] << '\n';
                 samples_stream << "\"\",ess," << ess[0][x] << ',' << ess[1][x] << ',' << ess[2][x] << ',' << ess[3][x] << ',' << ess[4][x] << '\n';
