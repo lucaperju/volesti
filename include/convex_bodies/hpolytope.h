@@ -583,27 +583,6 @@ public:
         NT* Av_data = Av.data();
         const NT* b_data = b.data();
 
-
-        std::cout << "got here pre!!" << std::endl;
-        std::cout << std::endl;
-        std::cout << "heapsize " << distances_set.heap_size << std::endl;
-        std::cout << "moved_dist " <<  params.moved_dist << std::endl;
-        std::cout << "lambda_prev " <<  lambda_prev << std::endl;
-        std::cout << "\n\nHeap first " << std::endl;
-        for(int i = 0; i < num_of_hyperplanes(); ++i) {
-            std::cout << distances_set.heap[i].first << ' ';
-        }
-        std::cout << "\n\nvec first " << std::endl;
-        for(int i = 0; i < num_of_hyperplanes(); ++i) {
-            std::cout << distances_set.vec[i].first << ' ';
-        }
-        std::cout << "\n\nvec second " << std::endl;
-        for(int i = 0; i < num_of_hyperplanes(); ++i) {
-            std::cout << distances_set.vec[i].second << ' ';
-        }
-        std::cout << std::endl << std::endl;
-
-
         for (Eigen::SparseMatrix<double>::InnerIterator it(AA, params.facet_prev); it; ++it) {
 
             *(Av_data + it.row()) += (-2.0 * inner_prev) * it.value();
@@ -617,25 +596,6 @@ public:
 
         params.inner_vi_ak = *(Av_data + ans.second);
         params.facet_prev = ans.second;
-
-        std::cout << "got here post!!" << std::endl;
-        std::cout << std::endl;
-        std::cout << "heapsize " << distances_set.heap_size << std::endl;
-        std::cout << "moved_dist " <<  params.moved_dist << std::endl;
-        std::cout << "lambda_prev " <<  lambda_prev << std::endl;
-        std::cout << "\n\nHeap first " << std::endl;
-        for(int i = 0; i < num_of_hyperplanes(); ++i) {
-            std::cout << distances_set.heap[i].first << ' ';
-        }
-        std::cout << "\n\nvec first " << std::endl;
-        for(int i = 0; i < num_of_hyperplanes(); ++i) {
-            std::cout << distances_set.vec[i].first << ' ';
-        }
-        std::cout << "\n\nvec second " << std::endl;
-        for(int i = 0; i < num_of_hyperplanes(); ++i) {
-            std::cout << distances_set.vec[i].second << ' ';
-        }
-        std::cout << std::endl << std::endl;
 
         /*if(ans.first < 0.00000001) {
             std::cout << "distance of 0 found" << std::endl;

@@ -102,7 +102,6 @@ public:
     }
 
     void change_val(const int index, const NT new_val, const NT moved_dist) { // takes the index from the vec
-        std::cout << "changing at index " << index << " new val " << new_val << " moved dist " << moved_dist << std::endl;
         if(new_val < moved_dist) { // should not be inserted into the heap
             remove(vec[index].second);
         } else { // should be inserted into the heap
@@ -239,9 +238,6 @@ struct AcceleratedBilliardWalk
 
                 _lambda_prev = dl * pbpair.first;
                 if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>::value) {
-
-                    std::cout << "new!--------------------------------------------------------------------" << std::endl;
-                    std::cout << _lambda_prev << std::endl;
                     _update_parameters.moved_dist = _lambda_prev;
                     typename Point::Coeff b = P.get_vec();
                     NT* b_data = b.data();
@@ -254,12 +250,28 @@ struct AcceleratedBilliardWalk
                 } else {
                     _p += (_lambda_prev * _v);
                 }
+
+                if(!P.is_in(_p + _update_parameters.moved_dist * _v))
+                    {
+                        std::cout << "oh no0" << std::endl;
+                        std::cout << _p.getCoefficients() << std::endl;
+                        std::cout << _v.getCoefficients() << std::endl;
+                        exit(0);
+                    }
+
                 T -= _lambda_prev;
                 P.compute_reflection(_v, _p, _update_parameters);
                 it++;
 
                 while (it < _rho)
-                {   
+                {
+                    if(!P.is_in(_p + _update_parameters.moved_dist * _v))
+                    {
+                        std::cout << "oh no1" << std::endl;
+                        std::cout << _p.getCoefficients() << std::endl;
+                        std::cout << _v.getCoefficients() << std::endl;
+                        exit(0);
+                    }
                     std::pair<NT, int> pbpair;
                     if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>::value) {
                         pbpair = P.line_positive_intersect(_p, _lambdas, _Av, _lambda_prev,
@@ -284,7 +296,7 @@ struct AcceleratedBilliardWalk
                     it++;
                     if(!P.is_in(_p + _update_parameters.moved_dist * _v))
                     {
-                        std::cout << "oh no" << std::endl;
+                        std::cout << "oh no2" << std::endl;
                         std::cout << _p.getCoefficients() << std::endl;
                         std::cout << _v.getCoefficients() << std::endl;
                         exit(0);
@@ -293,7 +305,7 @@ struct AcceleratedBilliardWalk
                 _p += _update_parameters.moved_dist * _v;
                 if(!P.is_in(_p))
                 {
-                    std::cout << "oh no" << std::endl;
+                    std::cout << "oh no3" << std::endl;
                     std::cout << _p.getCoefficients() << std::endl;
                     std::cout << _v.getCoefficients() << std::endl;
                     exit(0);

@@ -82,9 +82,6 @@ void sample_aBW (Polytope &P, RandomNumberGenerator &rng, std::list<Point> &rand
         PushBackWalkPolicy push_back_policy;
 
         nr_it = 0;
-
-        std::cout << "hi" << std::endl;
-
         RandomPointGenerator::apply(P, p, N, 1, randPoints,
                                     push_back_policy, rng);
 }
@@ -233,9 +230,8 @@ void sample_hpoly(int n_samples = 80000,
     Grad * g = new Grad;
     std::list<Point> PointList;
 
-    MT_D1 aa = DHP.get_mat().sparseView();
-
     auto aux = DHP.ComputeInnerBall();
+    MT_D1 aa = DHP.get_mat().sparseView();
 
     PolytopeType1 HHP = PolytopeType1(dim, aa, DHP.get_vec());
 
@@ -325,17 +321,17 @@ int main(int argc, char *argv[]) {
             std::ofstream samples_stream;
             samples_stream.open("output" + std::to_string(atoi(argv[1])) + ".txt");
             
-            for(int n = 5; n <= 50; n += 50)
+            for(int n = 50; n <= 200; n += 50)
             {
                 std::cout << "\n\n" << n << '\n';
-                int m = n * 4;
+                int m = n * 10;
                 double dur[5][5];
                 double psrf[5][5];
                 double ess[5][5];
                 double nr_s[5][5];
                 double nr_iter[5][5];
-                for(int a = 1; a <= 1; ++a)
-                    for(int b = 0; b <= 0; b+=4) {
+                for(int a = 0; a <= 4; ++a)
+                    for(int b = 0; b <= 4; b+=4) {
                         if(atoi(argv[1]) == 1)
                             run_main<1>(100 * n, 10, n, m, a, b);
                         else if(atoi(argv[1]) == 4)
