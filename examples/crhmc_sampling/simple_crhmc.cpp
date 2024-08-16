@@ -71,7 +71,6 @@ typename RandomNumberGenerator
 void sample_aBW (Polytope &P, RandomNumberGenerator &rng, std::list<Point> &randPoints, unsigned int const&N) {
         
 
-        P.print();
 
         std::cout << "finding the inner ball" << std::endl;
         Point p = P.ComputeInnerBall().first;
@@ -327,7 +326,7 @@ int main(int argc, char *argv[]) {
             std::ofstream samples_stream;
             samples_stream.open("output" + std::to_string(atoi(argv[1])) + ".txt");
             
-            for(int n = 50; n <= 50; n += 1)
+            for(int n = 10; n <= 10; n += 50)
             {
                 std::cout << "\n\n" << n << '\n';
                 int m = n * 10;
@@ -336,8 +335,8 @@ int main(int argc, char *argv[]) {
                 double ess[5][5];
                 double nr_s[5][5];
                 double nr_iter[5][5];
-                for(int a = 3; a <= 3; ++a)
-                    for(int b = 0; b <= 4; b+=4) {
+                for(int a = 1; a <= 1; ++a) // polytope type
+                    for(int b = 4; b <= 4; b+=4) { // sampling type
                         if(atoi(argv[1]) == 1)
                             run_main<1>(100 * n, 10, n, m, a, b);
                         else if(atoi(argv[1]) == 4)
