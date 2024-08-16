@@ -17,7 +17,7 @@
 #include <vector>
 
 
-const double eps = 0.000000001;
+const double eps = 0.0000000001;
 
 template<typename NT>
 class Heap {
