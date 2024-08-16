@@ -235,9 +235,10 @@ struct AcceleratedBilliardWalk
             NT T;
             const NT dl = 0.995;
             int it;
-            typename Point::Coeff b = P.get_vec();
-            NT* b_data = b.data();
-
+            if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>::value) {
+                typename Point::Coeff b = P.get_vec();
+                NT* b_data = b.data();
+            }
             for (auto j=0u; j<walk_length; ++j)
             {
                 T = -std::log(rng.sample_urdist()) * _L;
@@ -266,28 +267,12 @@ struct AcceleratedBilliardWalk
                 } else {
                     _p += (_lambda_prev * _v);
                 }
-
-                if(!P.is_in(_p + _update_parameters.moved_dist * _v))
-                    {
-                        std::cout << "oh no0" << std::endl;
-                        std::cout << _p.getCoefficients() << std::endl;
-                        std::cout << _v.getCoefficients() << std::endl;
-                        exit(0);
-                    }
-
                 T -= _lambda_prev;
                 P.compute_reflection(_v, _p, _update_parameters);
                 it++;
 
                 while (it < _rho)
-                {
-                    if(!P.is_in(_p + _update_parameters.moved_dist * _v))
-                    {
-                        std::cout << "oh no1" << std::endl;
-                        std::cout << _p.getCoefficients() << std::endl;
-                        std::cout << _v.getCoefficients() << std::endl;
-                        exit(0);
-                    }
+                {   
                     std::pair<NT, int> pbpair;
                     if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>::value) {
                         pbpair = P.line_positive_intersect(_p, _lambdas, _Av, _lambda_prev,
@@ -310,22 +295,8 @@ struct AcceleratedBilliardWalk
                     T -= _lambda_prev;
                     P.compute_reflection(_v, _p, _update_parameters);
                     it++;
-                    if(!P.is_in(_p + _update_parameters.moved_dist * _v))
-                    {
-                        std::cout << "oh no2" << std::endl;
-                        std::cout << _p.getCoefficients() << std::endl;
-                        std::cout << _v.getCoefficients() << std::endl;
-                        exit(0);
-                    }
                 }
                 _p += _update_parameters.moved_dist * _v;
-                if(!P.is_in(_p))
-                {
-                    std::cout << "oh no3" << std::endl;
-                    std::cout << _p.getCoefficients() << std::endl;
-                    std::cout << _v.getCoefficients() << std::endl;
-                    exit(0);
-                }
                 _update_parameters.moved_dist = 0.0;
                 if (it == _rho) {
                     _p = p0;
