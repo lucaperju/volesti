@@ -73,10 +73,12 @@ struct GaussianAcceleratedBilliardWalk
         typedef typename Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> DenseMT;
         typedef typename Polytope::VT VT;
         typedef typename Point::FT NT;
+        // We do sparse computations iff MT is sparse rowMajor
+        static constexpr bool SPARSE = std::is_same_v<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>;
         // AA is sparse colMajor if MT is sparse rowMajor, and Dense otherwise
-        using AA_type = std::conditional_t< std::is_same_v<MT, typename Eigen::SparseMatrix<NT, Eigen::RowMajor>>, typename Eigen::SparseMatrix<NT>, DenseMT >; 
+        using AA_type = std::conditional_t< SPARSE, typename Eigen::SparseMatrix<NT>, DenseMT >; 
         // AE is sparse rowMajor if (MT is sparse rowMajor and E is sparse), and Dense otherwise
-        using AE_type = std::conditional_t< std::is_same_v<MT, typename Eigen::SparseMatrix<NT, Eigen::RowMajor>> && std::is_base_of<Eigen::SparseMatrixBase<E_type>, E_type>::value, typename Eigen::SparseMatrix<NT, Eigen::RowMajor>, DenseMT >; 
+        using AE_type = std::conditional_t< SPARSE && std::is_base_of<Eigen::SparseMatrixBase<E_type>, E_type>::value, typename Eigen::SparseMatrix<NT, Eigen::RowMajor>, DenseMT >; 
 
         void computeLcov(const E_type E)
         {
@@ -117,10 +119,10 @@ struct GaussianAcceleratedBilliardWalk
             _L = compute_diameter<GenericPolytope>::template compute<NT>(P);
             computeLcov(E);
             _E = E;
-            if constexpr (std::is_same<AA_type, Eigen::SparseMatrix<NT>>::value) {
+            if constexpr (SPARSE) {
                 _AA = (P.get_mat() * P.get_mat().transpose());
             } else {
-                _AA.noalias() = (DenseMT)(P.get_mat() * P.get_mat().transpose());
+                _AA.noalias() = (P.get_mat() * P.get_mat().transpose());
             }
             _rho = 1000 * P.dimension(); // upper bound for the number of reflections (experimental)
             initialize(P, p, rng);
@@ -142,7 +144,7 @@ struct GaussianAcceleratedBilliardWalk
                                 ::template compute<NT>(P);
             computeLcov(E);
             _E = E;
-            if constexpr (std::is_same<AA_type, Eigen::SparseMatrix<NT>>::value) {
+            if constexpr (SPARSE) {
                 _AA = (P.get_mat() * P.get_mat().transpose());
             } else {
                 _AA.noalias() = (DenseMT)(P.get_mat() * P.get_mat().transpose());
@@ -186,7 +188,7 @@ struct GaussianAcceleratedBilliardWalk
                 }
 
                 _lambda_prev = dl * pbpair.first;
-                if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>::value) {
+                if constexpr (SPARSE) {
                     typename Point::Coeff b;
                     NT* b_data;
                     b = P.get_vec();
@@ -213,7 +215,7 @@ struct GaussianAcceleratedBilliardWalk
                 while (it < _rho)
                 {
                     std::pair<NT, int> pbpair;
-                    if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>::value) {
+                    if constexpr (SPARSE) {
                         pbpair = P.line_positive_intersect(_p, _lambdas, _Av, _lambda_prev,
                                                            _distances_set, _AA, _update_parameters);
                     } else {
@@ -227,7 +229,7 @@ struct GaussianAcceleratedBilliardWalk
                         break;
                     }
                     _lambda_prev = dl * pbpair.first;
-                    if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>::value) {
+                    if constexpr (SPARSE) {
                         _update_parameters.moved_dist += _lambda_prev;
                     } else {
                         _p += (_lambda_prev * _v);

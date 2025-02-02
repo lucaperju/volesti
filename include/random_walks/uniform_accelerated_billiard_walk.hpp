@@ -63,8 +63,10 @@ struct AcceleratedBilliardWalk
         typedef typename Polytope::MT MT;
         typedef typename Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> DenseMT;
         typedef typename Point::FT NT;
-        using AA_type = std::conditional_t< std::is_same_v<MT, typename Eigen::SparseMatrix<NT, Eigen::RowMajor>>, typename Eigen::SparseMatrix<NT>, DenseMT >; 
+        // We do sparse computations iff MT is sparse rowMajor
+        static constexpr bool SPARSE = std::is_same_v<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>;
         // AA is sparse colMajor if MT is sparse rowMajor, and Dense otherwise
+        using AA_type = std::conditional_t< SPARSE, typename Eigen::SparseMatrix<NT>, DenseMT >;
 
         template <typename GenericPolytope>
         Walk(GenericPolytope &P, Point const& p, RandomNumberGenerator &rng)
@@ -75,7 +77,7 @@ struct AcceleratedBilliardWalk
             _update_parameters = update_parameters();
             _L = compute_diameter<GenericPolytope>
                 ::template compute<NT>(P);
-            if constexpr (std::is_same<AA_type, Eigen::SparseMatrix<NT>>::value) {
+            if constexpr (SPARSE) {
                 _AA = (P.get_mat() * P.get_mat().transpose());
             } else {
                 _AA.noalias() = (DenseMT)(P.get_mat() * P.get_mat().transpose());
@@ -95,7 +97,7 @@ struct AcceleratedBilliardWalk
             _L = params.set_L ? params.m_L
                               : compute_diameter<GenericPolytope>
                                 ::template compute<NT>(P);
-            if constexpr (std::is_same<AA_type, Eigen::SparseMatrix<NT>>::value) {
+            if constexpr (SPARSE) {
                 _AA = (P.get_mat() * P.get_mat().transpose());
             } else {
                 _AA.noalias() = (DenseMT)(P.get_mat() * P.get_mat().transpose());
@@ -119,7 +121,7 @@ struct AcceleratedBilliardWalk
             int it;
             typename Point::Coeff b;
             NT* b_data;
-            if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>::value) {
+            if constexpr (SPARSE) {
                 b = P.get_vec();
                 b_data = b.data();
             }
@@ -140,7 +142,7 @@ struct AcceleratedBilliardWalk
                 }
 
                 _lambda_prev = dl * pbpair.first;
-                if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>::value) {
+                if constexpr (SPARSE) {
                     _update_parameters.moved_dist = _lambda_prev;
                     NT* Ar_data = _lambdas.data();
                     NT* Av_data = _Av.data();
@@ -153,13 +155,13 @@ struct AcceleratedBilliardWalk
                     _p += (_lambda_prev * _v);
                 }
                 T -= _lambda_prev;
-                P.compute_reflection(_v, _p, _update_parameters);
+                P.compute_reflection_abw(_v, _p, _update_parameters);
                 it++;
 
                 while (it < _rho)
                 {
                     std::pair<NT, int> pbpair;
-                    if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>::value) {
+                    if constexpr (SPARSE) {
                         pbpair = P.line_positive_intersect(_p, _lambdas, _Av, _lambda_prev,
                                                            _distances_set, _AA, _update_parameters);
                     } else {
@@ -172,13 +174,13 @@ struct AcceleratedBilliardWalk
                         break;
                     }
                     _lambda_prev = dl * pbpair.first;
-                    if constexpr (std::is_same<MT, Eigen::SparseMatrix<NT, Eigen::RowMajor>>::value) {
+                    if constexpr (SPARSE) {
                         _update_parameters.moved_dist += _lambda_prev;
                     } else {
                         _p += (_lambda_prev * _v);
                     }
                     T -= _lambda_prev;
-                    P.compute_reflection(_v, _p, _update_parameters);
+                    P.compute_reflection_abw(_v, _p, _update_parameters);
                     it++;
                 }
                 _p += _update_parameters.moved_dist * _v;
@@ -300,7 +302,7 @@ struct AcceleratedBilliardWalk
             _lambda_prev = dl * pbpair.first;
             _p += (_lambda_prev * _v);
             T -= _lambda_prev;
-            P.compute_reflection(_v, _p, _update_parameters);
+            P.compute_reflection_abw(_v, _p, _update_parameters);
 
             while (it <= _rho)
             {
@@ -318,7 +320,7 @@ struct AcceleratedBilliardWalk
                 _lambda_prev = dl * pbpair.first;
                 _p += (_lambda_prev * _v);
                 T -= _lambda_prev;
-                P.compute_reflection(_v, _p, _update_parameters);
+                P.compute_reflection_abw(_v, _p, _update_parameters);
                 it++;
             }
         }
